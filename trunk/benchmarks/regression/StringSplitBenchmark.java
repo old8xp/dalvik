@@ -32,6 +32,12 @@ public class StringSplitBenchmark extends SimpleBenchmark {
         }
     }
 
+    public void timeStringSplitNewline(int reps) {
+        for (int i = 0; i < reps; ++i) {
+            "this\nis\na\nsimple\nexample\n".split("\n");
+        }
+    }
+
     public void timePatternSplitComma(int reps) {
         Pattern p = Pattern.compile(",");
         for (int i = 0; i < reps; ++i) {
