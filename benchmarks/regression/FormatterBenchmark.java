@@ -19,6 +19,7 @@ package benchmarks.regression;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import java.util.Formatter;
+import java.util.Locale;
 
 /**
  * Compares Formatter against hand-written StringBuilder code.
@@ -43,6 +44,15 @@ public class FormatterBenchmark extends SimpleBenchmark {
         for (int i = 0; i < reps; i++) {
             Formatter f = new Formatter();
             f.format("this is a reasonably short string that has an int %d in it", value);
+        }
+    }
+    
+    public void timeFormatter_OneIntArabic(int reps) {
+        Locale arabic = new Locale("ar");
+        Integer value = Integer.valueOf(1024); // We're not trying to benchmark boxing here.
+        for (int i = 0; i < reps; i++) {
+            Formatter f = new Formatter();
+            f.format(arabic, "this is a reasonably short string that has an int %d in it", value);
         }
     }
     
