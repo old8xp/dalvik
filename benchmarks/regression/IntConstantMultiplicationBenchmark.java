@@ -52,7 +52,7 @@ public class IntConstantMultiplicationBenchmark extends SimpleBenchmark {
     public int timeMultiplyIntByConstant10(int reps) {
         int result = 1;
         for (int i = 0; i < reps; ++i) {
-            result *= 8;
+            result *= 10;
         }
         return result;
     }
