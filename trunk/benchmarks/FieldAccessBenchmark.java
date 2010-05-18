@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package benchmark;
+package benchmarks;
 
 import com.google.caliper.Param;
 import com.google.caliper.Runner;
