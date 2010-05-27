@@ -32,7 +32,7 @@ import java.util.TreeSet;
 /**
  * Writes a plain text report describing the API of a set of packages.
  */
-public class ApiDump {
+public final class ApiDump {
 
     private static final Comparator<Class<?>> ORDER_TYPES = new Comparator<Class<?>>() {
         public int compare(Class<?> a, Class<?> b) {
@@ -174,7 +174,8 @@ public class ApiDump {
     }
 
     /**
-     * Prints a member declaration like this:
+     * Prints a member declaration like these:
+     *
      *   public HashMap(int, float);
      *   protected void finalize() throws java.lang.Throwable;
      */
@@ -284,15 +285,15 @@ public class ApiDump {
 
     private void getImplementedInterfaces(Class<?> type, Set<Class<?>> sink) {
         for (Class<?> implemented : type.getInterfaces()) {
-             // TODO: skip private interfaces
+             // TODO: omit private interfaces
             if (sink.add(implemented)) {
                 getImplementedInterfaces(implemented, sink);
             }
         }
     }
 
-    private static void getMembersRecursive(Class<?> type, Set<Class<?>> visited, Set<Member> sink,
-            boolean direct) {
+    private static void getMembersRecursive(
+            Class<?> type, Set<Class<?>> visited, Set<Member> sink, boolean direct) {
         // fields and constructors aren't inherited, but methods are 
         if (direct) {
             sink.addAll(Arrays.asList(type.getDeclaredConstructors()));
@@ -317,8 +318,8 @@ public class ApiDump {
 
     private void addPackages(String... packages) throws IOException {
         ClassPathScanner scanner = new ClassPathScanner(ApiDump.class.getClassLoader());
-        for (String p : packages) {
-            Set<Class<?>> types = scanner.scan(p).getTopLevelClassesRecursive();
+        for (String packageName : packages) {
+            Set<Class<?>> types = scanner.scan(packageName).getTopLevelClassesRecursive();
             for (Class<?> type : types) {
                 getTypesRecursive(type, types);
             }
@@ -326,7 +327,7 @@ public class ApiDump {
     }
 
     private void getTypesRecursive(Class<?> type, Set<Class<?>> sink) {
-        this.types.add(type);
+        sink.add(type);
         for (Class<?> inner : type.getClasses()) {
             getTypesRecursive(inner, sink);
         }
@@ -334,7 +335,7 @@ public class ApiDump {
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.out.println("Usage: ApiDump <packages...>");
+            System.out.println("Usage: ApiDump <package names...>");
         }
 
         ApiDump dump = new ApiDump(System.out);
