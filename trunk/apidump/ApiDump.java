@@ -34,6 +34,12 @@ import java.util.TreeSet;
  */
 public class ApiDump {
 
+    public static class Covariant {
+        public Covariant clone() {
+            return null;
+        }
+    }
+
     private static final Comparator<Class<?>> ORDER_TYPES = new Comparator<Class<?>>() {
         public int compare(Class<?> a, Class<?> b) {
             return typeToString(a).compareTo(typeToString(b));
@@ -156,7 +162,7 @@ public class ApiDump {
         out.print(" " + typeToString(type));
 
         Class<?> superClass = type.getSuperclass(); // TODO: skip private supertypes
-        if (superClass != null) {
+        if (superClass != null && superClass != Object.class) {
             out.print("\n    extends " + typeToString(superClass));
         }
 
@@ -273,6 +279,8 @@ public class ApiDump {
     private String typeType(Class<?> type) {
         if (type.isEnum()) {
             return "enum";
+        } else if (type.isAnnotation()) {
+            return "@interface";
         } else if (type.isInterface()) {
             return "interface";
         } else {
@@ -314,9 +322,19 @@ public class ApiDump {
 
 
     private void addPackages(String... packages) throws IOException {
-        ClassPathScanner scanner = new ClassPathScanner();
+        ClassPathScanner scanner = new ClassPathScanner(ApiDump.class.getClassLoader());
         for (String p : packages) {
-            types.addAll(scanner.scan(p).getTopLevelClassesRecursive());
+            Set<Class<?>> types = scanner.scan(p).getTopLevelClassesRecursive();
+            for (Class<?> type : types) {
+                getTypesRecursive(type, types);
+            }
+        }
+    }
+
+    private void getTypesRecursive(Class<?> type, Set<Class<?>> sink) {
+        this.types.add(type);
+        for (Class<?> inner : type.getClasses()) {
+            getTypesRecursive(inner, sink);
         }
     }
 
