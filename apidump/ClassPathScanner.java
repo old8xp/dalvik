@@ -38,12 +38,14 @@ final class ClassPathScanner {
 
     private static final String DOT_CLASS = ".class";
 
+    private final ClassLoader classLoader;
     private final String[] classPath;
     private final ClassFinder classFinder;
 
-    ClassPathScanner() {
-        classPath = getClassPath();
-        classFinder = "Dalvik".equals(System.getProperty("java.vm.name"))
+    ClassPathScanner(ClassLoader classLoader) {
+        this.classLoader = classLoader;
+        this.classPath = getClassPath();
+        this.classFinder = "Dalvik".equals(System.getProperty("java.vm.name"))
                 ? new ApkClassFinder()
                 : new JarClassFinder();
     }
@@ -59,7 +61,7 @@ final class ClassPathScanner {
         findClasses(packageName, classNames, subpackageNames);
         for (String className : classNames) {
             try {
-                topLevelClasses.add(Class.forName(className, false, null));
+                topLevelClasses.add(Class.forName(className, false, classLoader));
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
