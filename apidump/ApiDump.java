@@ -34,12 +34,6 @@ import java.util.TreeSet;
  */
 public class ApiDump {
 
-    public static class Covariant {
-        public Covariant clone() {
-            return null;
-        }
-    }
-
     private static final Comparator<Class<?>> ORDER_TYPES = new Comparator<Class<?>>() {
         public int compare(Class<?> a, Class<?> b) {
             return typeToString(a).compareTo(typeToString(b));
