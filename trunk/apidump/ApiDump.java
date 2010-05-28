@@ -151,7 +151,7 @@ public final class ApiDump {
      *     implements java.io.Serializable, java.lang.Cloneable, java.util.Map {
      */
     private void dumpTypeDeclaration(Class<?> type) {
-        dumpModifiers(type.getModifiers());
+        dumpModifiers(type.getModifiers(), type.isEnum(), type.isEnum() || type.isInterface());
         out.print(" " + typeType(type));
         out.print(" " + typeToString(type));
 
@@ -164,7 +164,7 @@ public final class ApiDump {
         getImplementedInterfaces(type, allImplementedInterfaces);
         if (!allImplementedInterfaces.isEmpty()) {
             Iterator<Class<?>> i = allImplementedInterfaces.iterator();
-            out.print("\n    implements " + i.next());
+            out.print("\n    implements " + typeToString(i.next()));
             while (i.hasNext()) {
                 out.print(", " + i.next());
             }
@@ -185,7 +185,9 @@ public final class ApiDump {
         }
 
         out.print("  ");
-        dumpModifiers(member.getModifiers());
+        Class<?> declaringClass = member.getDeclaringClass();
+        dumpModifiers(member.getModifiers(), declaringClass.isEnum(),
+                declaringClass.isEnum() || declaringClass.isInterface());
 
         if (member instanceof Field) {
             Field field = (Field) member;
@@ -223,26 +225,50 @@ public final class ApiDump {
         out.print(")");
 
         count = 0;
-        for (Class<?> exception : exceptions) {
-            if (isChecked(exception)) {
-                if (count++ == 0) {
-                    out.print(" throws ");
-                } else {
-                    out.print(", ");
-                }
-                out.print(typeToString(exception));
+        for (Class<?> exception : deduplicateExceptions(exceptions)) {
+            if (count++ == 0) {
+                out.print(" throws ");
+            } else {
+                out.print(", ");
             }
+            out.print(typeToString(exception));
         }
 
         out.print(";\n");
     }
 
-    private boolean isChecked(Class<?> exception) {
-        return !RuntimeException.class.isAssignableFrom(exception)
-                && !Error.class.isAssignableFrom(exception);
+    /**
+     * Removes unnecessary exceptions. Some members declare redundant exceptions,
+     * for example:
+     *     public void foo() throws IOException, FileNotFoundException;
+     * could be simplified to:
+     *     public void foo() throws IOException;
+     */
+    private Set<Class<?>> deduplicateExceptions(Class<?>[] exceptions) {
+        Set<Class<?>> result = new TreeSet<Class<?>>(ORDER_TYPES);
+
+        eachException:
+        for (Class<?> exception : exceptions) {
+            if (RuntimeException.class.isAssignableFrom(exception)
+                    || Error.class.isAssignableFrom(exception)) {
+                continue;
+            }
+            for (Iterator<Class<?>> i = result.iterator(); i.hasNext(); ) {
+                Class<?> existing = i.next();
+                if (existing.isAssignableFrom(exception)) {
+                    continue eachException;
+                }
+                if (exception.isAssignableFrom(existing)) {
+                    i.remove();
+                }
+            }
+            result.add(exception);
+        }
+
+        return result;
     }
 
-    private void dumpModifiers(int modifiers) {
+    private void dumpModifiers(int modifiers, boolean omitFinal, boolean omitAbstract) {
         if (Modifier.isPublic(modifiers)) {
             out.print("public");
         } else if (Modifier.isProtected(modifiers)) {
@@ -255,10 +281,10 @@ public final class ApiDump {
         if (Modifier.isStatic(modifiers)) {
             out.print(" static");
         }
-        if (Modifier.isFinal(modifiers)) {
+        if (!omitFinal && Modifier.isFinal(modifiers)) {
             out.print(" final");
         }
-        if (Modifier.isAbstract(modifiers)) {
+        if (!omitAbstract && Modifier.isAbstract(modifiers)) {
             out.print(" abstract");
         }
     }
@@ -290,16 +316,26 @@ public final class ApiDump {
                 getImplementedInterfaces(implemented, sink);
             }
         }
+        Class<?> superclass = type.getSuperclass();
+        if (superclass != null) {
+            getImplementedInterfaces(superclass, sink);
+        }
     }
 
     private static void getMembersRecursive(
             Class<?> type, Set<Class<?>> visited, Set<Member> sink, boolean direct) {
-        // fields and constructors aren't inherited, but methods are 
+        // fields and constructors aren't inherited
         if (direct) {
             sink.addAll(Arrays.asList(type.getDeclaredConstructors()));
             sink.addAll(Arrays.asList(type.getDeclaredFields()));
         }
-        sink.addAll(Arrays.asList(type.getDeclaredMethods()));
+
+        // don't add a method when an override is already present
+        for (Method method : type.getDeclaredMethods()) {
+            if (!method.isSynthetic() && !sink.contains(method)) {
+                sink.add(method);
+            }
+        }
 
         Class<?> superClass = type.getSuperclass();
         if (superClass != null) {
@@ -315,21 +351,28 @@ public final class ApiDump {
         }
     }
 
-
     private void addPackages(String... packages) throws IOException {
         ClassPathScanner scanner = new ClassPathScanner(ApiDump.class.getClassLoader());
+        System.err.println("Scanning " + Arrays.toString(scanner.getClassPath()));
+
+
         for (String packageName : packages) {
             Set<Class<?>> types = scanner.scan(packageName).getTopLevelClassesRecursive();
+            if (types.isEmpty()) {
+                throw new IllegalArgumentException("No types in " + packageName);
+            }
+
             for (Class<?> type : types) {
-                getTypesRecursive(type, types);
+                getTypesRecursive(type, this.types);
             }
         }
     }
 
     private void getTypesRecursive(Class<?> type, Set<Class<?>> sink) {
-        sink.add(type);
-        for (Class<?> inner : type.getClasses()) {
-            getTypesRecursive(inner, sink);
+        if (sink.add(type)) {
+            for (Class<?> inner : type.getClasses()) {
+                getTypesRecursive(inner, sink);
+            }
         }
     }
 

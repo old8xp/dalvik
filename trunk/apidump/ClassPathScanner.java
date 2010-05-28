@@ -16,7 +16,6 @@
 
 package apidump;
 
-import dalvik.system.DexFile;
 import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
@@ -44,10 +43,12 @@ final class ClassPathScanner {
 
     ClassPathScanner(ClassLoader classLoader) {
         this.classLoader = classLoader;
-        this.classPath = getClassPath();
-        this.classFinder = "Dalvik".equals(System.getProperty("java.vm.name"))
-                ? new ApkClassFinder()
-                : new JarClassFinder();
+        this.classPath = vmClassPath();
+        this.classFinder = new JarClassFinder();
+    }
+
+    public String[] getClassPath() {
+        return classPath;
     }
 
     /**
@@ -160,43 +161,6 @@ final class ClassPathScanner {
     }
 
     /**
-     * Finds all classes and sub packages that are below the packageName and
-     * add them to the respective sets. Searches the package in a single APK.
-     *
-     * <p>This class uses the Android-only class DexFile. This class will fail
-     * to load on non-Android VMs.
-     */
-    static class ApkClassFinder implements ClassFinder {
-        public void find(File classPathEntry, String pathPrefix, String packageName,
-                Set<String> classNames, Set<String> subpackageNames) throws IOException {
-            DexFile dexFile;
-            try {
-                dexFile = new DexFile(classPathEntry);
-            } catch (IOException e) {
-                return; // okay, presumably the dex file didn't contain any classes
-            }
-            Enumeration<String> apkClassNames = dexFile.entries();
-            while (apkClassNames.hasMoreElements()) {
-                String className = apkClassNames.nextElement();
-                if (!className.startsWith(packageName)) {
-                    continue;
-                }
-
-                String subPackageName = packageName;
-                int lastPackageSeparator = className.lastIndexOf('.');
-                if (lastPackageSeparator > 0) {
-                    subPackageName = className.substring(0, lastPackageSeparator);
-                }
-                if (subPackageName.length() > packageName.length()) {
-                    subpackageNames.add(subPackageName);
-                } else if (isToplevelClass(className)) {
-                    classNames.add(className);
-                }
-            }
-        }
-    };
-
-    /**
      * Returns true if a given file name represents a toplevel class.
      */
     private static boolean isToplevelClass(String fileName) {
@@ -215,7 +179,7 @@ final class ClassPathScanner {
      * Gets the class path from the System Property "java.class.path" and splits
      * it up into the individual elements.
      */
-    public static String[] getClassPath() {
+    private static String[] vmClassPath() {
         String classPath = System.getProperty("java.class.path");
         String separator = System.getProperty("path.separator", ":");
         return classPath.split(Pattern.quote(separator));
