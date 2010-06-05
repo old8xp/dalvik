@@ -16,6 +16,7 @@
 
 package apidump;
 
+import com.google.inject.TypeLiteral;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
@@ -23,9 +24,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.TypeVariable;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -34,79 +38,55 @@ import java.util.TreeSet;
  */
 public final class ApiDump {
 
-    private static final Comparator<Class<?>> ORDER_TYPES = new Comparator<Class<?>>() {
+    private static final Comparator<TypeLiteral<?>> ORDER_TYPES = new Comparator<TypeLiteral<?>>() {
+        public int compare(TypeLiteral<?> a, TypeLiteral<?> b) {
+            return a.toString().compareTo(b.toString());
+        }
+    };
+
+    private static final Comparator<Class<?>> ORDER_CLASSES = new Comparator<Class<?>>() {
         public int compare(Class<?> a, Class<?> b) {
-            return typeToString(a).compareTo(typeToString(b));
+            return a.getName().compareTo(b.getName());
         }
     };
 
     /**
      * Order members by member type (fields, constructors, then methods), name, and parameters.
      */
-    private static final Comparator<Member> ORDER_MEMBERS = new Comparator<Member>() {
-        public int compare(Member a, Member b) {
-            int mt = rankMemberByMemberType(a) - rankMemberByMemberType(b);
+    private static final Comparator<QualifiedMember> ORDER_MEMBERS = new Comparator<QualifiedMember>() {
+        public int compare(QualifiedMember a, QualifiedMember b) {
+            int mt = a.rankByType() - b.rankByType();
             if (mt != 0) {
                 return mt;
             }
 
-            int n = a.getName().compareTo(b.getName());
+            int n = a.member.getName().compareTo(b.member.getName());
             if (n != 0) {
                 return n;
             }
 
-            Class<?>[] aParameters;
-            Class<?>[] bParameters;
-            if (a instanceof Constructor) {
-                aParameters = ((Constructor) a).getParameterTypes();
-                bParameters = ((Constructor) b).getParameterTypes();
-            } else if (b instanceof Method) {
-                aParameters = ((Method) a).getParameterTypes();
-                bParameters = ((Method) b).getParameterTypes();
-            } else {
+            if (a.isField()) {
                 return 0;
             }
 
-            for (int i = 0; i < aParameters.length && i < bParameters.length; i++) {
-                int t = ORDER_TYPES.compare(aParameters[i], bParameters[i]);
+            List<TypeLiteral<?>> aParameters = a.getParameterTypes();
+            List<TypeLiteral<?>> bParameters = b.getParameterTypes();
+
+            for (int i = 0; i < aParameters.size() && i < bParameters.size(); i++) {
+                int t = ORDER_TYPES.compare(aParameters.get(i), bParameters.get(i));
                 if (t != 0) {
                     return t;
                 }
             }
 
-            return aParameters.length - bParameters.length;
-        }
-
-        private int rankMemberByMemberType(Member member) {
-            if (member instanceof Field) {
-                return 0;
-            } else if (member instanceof Constructor) {
-                return 1;
-            } else if (member instanceof Method) {
-                return 2;
-            } else {
-                throw new AssertionError();
-            }
+            return aParameters.size() - bParameters.size();
         }
     };
 
-    /**
-     * Don't print members inherited by every class, unless it's clone(). We
-     * have to print clone() because it's eligible for covariant return types,
-     * and subclasses may expose a different signature.
-     */
-    private static Set<Member> membersToSuppress = new TreeSet<Member>(ORDER_MEMBERS);
-    static {
-        getMembersRecursive(
-                Object.class, new TreeSet<Class<?>>(ORDER_TYPES), membersToSuppress, true);
-        try {
-            membersToSuppress.remove(Object.class.getDeclaredMethod("clone"));
-        } catch (NoSuchMethodException e) {
-            throw new AssertionError();
-        }
-    }
+    private static final TypeLiteral<Object> OBJECT = new TypeLiteral<Object>() {};
+    private static final Set<QualifiedMember> MEMBERS_TO_SUPPRESS = computeMembersToSuppress();
 
-    private final TreeSet<Class<?>> types = new TreeSet<Class<?>>(ORDER_TYPES);
+    private final TreeSet<Class<?>> classes = new TreeSet<Class<?>>(ORDER_CLASSES);
     private final PrintStream out;
 
     public ApiDump(PrintStream out) {
@@ -118,7 +98,7 @@ public final class ApiDump {
     }
 
     private void dump() {
-        for (Class<?> type : types) {
+        for (Class<?> type : classes) {
             dumpType(type);
         }
     }
@@ -128,14 +108,14 @@ public final class ApiDump {
             return;
         }
 
-        dumpTypeDeclaration(type);
+        dumpClassDeclaration(type);
 
-        Set<Class<?>> visited = new TreeSet<Class<?>>(ORDER_TYPES);
-        Set<Member> members = new TreeSet<Member>(ORDER_MEMBERS);
-        getMembersRecursive(type, visited, members, true);
+        Set<Class<?>> visited = new TreeSet<Class<?>>(ORDER_CLASSES);
+        Set<QualifiedMember> members = new TreeSet<QualifiedMember>(ORDER_MEMBERS);
+        getMembersRecursive(TypeLiteral.get(type), visited, members, true);
 
-        for (Member member : members) {
-            if (!membersToSuppress.contains(member)) {
+        for (QualifiedMember member : members) {
+            if (!MEMBERS_TO_SUPPRESS.contains(member)) {
                 dumpMemberDeclaration(member);
             }
         }
@@ -146,31 +126,50 @@ public final class ApiDump {
     /**
      * Writes a type declaration like this:
      *
-     * public class java.util.HashMap
-     *     extends java.util.AbstractMap
-     *     implements java.io.Serializable, java.lang.Cloneable, java.util.Map {
+     * public class java.util.HashMap<K, V>
+     *     extends java.util.AbstractMap<K, V>
+     *     implements java.io.Serializable, java.lang.Cloneable, java.util.Map<K, V> {
      */
-    private void dumpTypeDeclaration(Class<?> type) {
-        dumpModifiers(type.getModifiers(), type.isEnum(), type.isEnum() || type.isInterface());
-        out.print(" " + typeType(type));
-        out.print(" " + typeToString(type));
+    private void dumpClassDeclaration(Class<?> rawType) {
+        TypeLiteral<?> type = TypeLiteral.get(rawType);
 
-        Class<?> superClass = type.getSuperclass(); // TODO: skip private supertypes
-        if (superClass != null && superClass != Object.class) {
-            out.print("\n    extends " + typeToString(superClass));
+        dumpModifiers(rawType.getModifiers(), rawType.isEnum(),
+                rawType.isEnum() || rawType.isInterface());
+        out.print(" " + typeType(rawType));
+        out.print(" " + type);
+
+        TypeVariable<?>[] typeParameters = rawType.getTypeParameters();
+        if (typeParameters.length > 0) {
+            out.print("<" + join(", ", Arrays.asList(typeParameters)) + ">");
         }
 
-        Set<Class<?>> allImplementedInterfaces = new TreeSet<Class<?>>(ORDER_TYPES);
-        getImplementedInterfaces(type, allImplementedInterfaces);
+        // TODO: skip private supertypes
+        Class<?> rawSuperclass = rawType.getSuperclass();
+        if (rawSuperclass != null && rawSuperclass != Object.class) {
+            out.print("\n    extends " + type.getSupertype(rawSuperclass));
+        }
+
+        Set<TypeLiteral<?>> allImplementedInterfaces = new TreeSet<TypeLiteral<?>>(ORDER_TYPES);
+        getImplementedInterfaces(TypeLiteral.get(rawType), allImplementedInterfaces);
         if (!allImplementedInterfaces.isEmpty()) {
-            Iterator<Class<?>> i = allImplementedInterfaces.iterator();
-            out.print("\n    implements " + typeToString(i.next()));
-            while (i.hasNext()) {
-                out.print(", " + i.next());
-            }
+            out.print("\n    implements " + join(", ", allImplementedInterfaces));
         }
 
         out.print(" {\n");
+    }
+
+    private static String join(String delimiter, Iterable<?> args) {
+        Iterator<?> i = args.iterator();
+        if (!i.hasNext()) {
+            return "";
+        }
+        StringBuilder result = new StringBuilder();
+        result.append(i.next());
+        while (i.hasNext()) {
+            result.append(delimiter);
+            result.append(i.next());
+        }
+        return result.toString();
     }
 
     /**
@@ -179,61 +178,66 @@ public final class ApiDump {
      *   public HashMap(int, float);
      *   protected void finalize() throws java.lang.Throwable;
      */
-    private void dumpMemberDeclaration(Member member) {
-        if (!isVisible(member.getModifiers())) {
+    private void dumpMemberDeclaration(QualifiedMember member) {
+        if (!isVisible(member.member.getModifiers())) {
             return;
         }
 
         out.print("  ");
-        Class<?> declaringClass = member.getDeclaringClass();
-        dumpModifiers(member.getModifiers(), declaringClass.isEnum(),
+        Class<?> declaringClass = member.type.getRawType();
+        dumpModifiers(member.member.getModifiers(), declaringClass.isEnum(),
                 declaringClass.isEnum() || declaringClass.isInterface());
 
-        if (member instanceof Field) {
-            Field field = (Field) member;
-            out.print(" " + typeToString(field.getType()));
+        if (member.isField()) {
+            Field field = (Field) member.member;
+            out.print(" " + member.type.getFieldType((Field) member.member));
             out.print(" " + field.getName());
             out.print(";\n");
             return;
         }
 
-        Class<?>[] parameters;
-        Class<?>[] exceptions;
-        if (member instanceof Constructor) {
-            Constructor constructor = (Constructor) member;
-            parameters = constructor.getParameterTypes();
-            exceptions = constructor.getExceptionTypes();
-            out.print(" " + constructor.getName());
-        } else if (member instanceof Method) {
-            Method method = (Method) member;
-            parameters = method.getParameterTypes();
-            exceptions = method.getExceptionTypes();
-            out.print(" " + typeToString(method.getReturnType()));
-            out.print(" " + method.getName());
+        List<TypeLiteral<?>> parameters = member.getParameterTypes();
+        List<TypeLiteral<?>> exceptions = member.getExceptionTypes();
+        TypeVariable<?>[] typeParameters;
+        boolean isVarArgs;
+        String name;
+        if (member.member instanceof Constructor) {
+            Constructor constructor = (Constructor) member.member;
+            typeParameters = constructor.getTypeParameters();
+            isVarArgs = constructor.isVarArgs();
+            name = constructor.getName();
+        } else if (member.member instanceof Method) {
+            Method method = (Method) member.member;
+            typeParameters = method.getTypeParameters();
+            isVarArgs = method.isVarArgs();
+            name = method.getName();
         } else {
             throw new AssertionError();
         }
 
+        if (typeParameters.length > 0) {
+            out.print(" <" + join(", ", Arrays.asList(typeParameters)) + ">");
+        }
+
+        if (member.member instanceof Method) {
+            out.print(" " + member.type.getReturnType((Method) member.member));
+        }
+
+        out.print(" " + name);
         out.print("(");
-        int count = 0;
-        for (Class<?> parameter : parameters) {
-            if (count++ > 0) {
+        for (int i = 0; i < parameters.size(); i++) {
+            TypeLiteral<?> parameter = parameters.get(i);
+            if (i > 0) {
                 out.print(", ");
             }
-            out.print(typeToString(parameter));
+            out.print(parameterToString(parameter, (i == parameters.size() - 1 && isVarArgs)));
         }
         out.print(")");
 
-        count = 0;
-        for (Class<?> exception : deduplicateExceptions(exceptions)) {
-            if (count++ == 0) {
-                out.print(" throws ");
-            } else {
-                out.print(", ");
-            }
-            out.print(typeToString(exception));
+        Set<TypeLiteral<?>> deduplicatedExceptions = deduplicateExceptions(exceptions);
+        if (!deduplicatedExceptions.isEmpty()) {
+            out.print(" throws " + join(", ", deduplicatedExceptions));
         }
-
         out.print(";\n");
     }
 
@@ -244,21 +248,22 @@ public final class ApiDump {
      * could be simplified to:
      *     public void foo() throws IOException;
      */
-    private Set<Class<?>> deduplicateExceptions(Class<?>[] exceptions) {
-        Set<Class<?>> result = new TreeSet<Class<?>>(ORDER_TYPES);
+    private Set<TypeLiteral<?>> deduplicateExceptions(List<TypeLiteral<?>> exceptions) {
+        Set<TypeLiteral<?>> result = new TreeSet<TypeLiteral<?>>(ORDER_TYPES);
 
         eachException:
-        for (Class<?> exception : exceptions) {
-            if (RuntimeException.class.isAssignableFrom(exception)
-                    || Error.class.isAssignableFrom(exception)) {
+        for (TypeLiteral<?> exception : exceptions) {
+            Class<?> rawException = exception.getRawType();
+            if (RuntimeException.class.isAssignableFrom(rawException)
+                    || Error.class.isAssignableFrom(rawException)) {
                 continue;
             }
-            for (Iterator<Class<?>> i = result.iterator(); i.hasNext(); ) {
-                Class<?> existing = i.next();
-                if (existing.isAssignableFrom(exception)) {
+            for (Iterator<TypeLiteral<?>> i = result.iterator(); i.hasNext(); ) {
+                TypeLiteral<?> existing = i.next();
+                if (existing.getRawType().isAssignableFrom(rawException)) {
                     continue eachException;
                 }
-                if (exception.isAssignableFrom(existing)) {
+                if (rawException.isAssignableFrom(existing.getRawType())) {
                     i.remove();
                 }
             }
@@ -289,12 +294,15 @@ public final class ApiDump {
         }
     }
 
-    private static String typeToString(Class<?> type) {
-        if (type.isArray()) {
-            return typeToString(type.getComponentType()) + "[]";
-        } else {
-            return type.getName();
+    private static String parameterToString(TypeLiteral<?> type, boolean isVarArgs) {
+        String toString = type.toString();
+        if (isVarArgs) {
+            if (!toString.endsWith("[]")) {
+                throw new IllegalArgumentException();
+            }
+            return toString.substring(0, toString.length() - 2) + "...";
         }
+        return toString;
     }
 
     private String typeType(Class<?> type) {
@@ -309,44 +317,59 @@ public final class ApiDump {
         }
     }
 
-    private void getImplementedInterfaces(Class<?> type, Set<Class<?>> sink) {
-        for (Class<?> implemented : type.getInterfaces()) {
-             // TODO: omit private interfaces
+    private void getImplementedInterfaces(TypeLiteral<?> type, Set<TypeLiteral<?>> sink) {
+        // TODO: omit private interfaces and private superclasses
+
+        Class<?> rawType = type.getRawType();
+        for (Class<?> rawInterface : rawType.getInterfaces()) {
+            TypeLiteral<?> implemented = type.getSupertype(rawInterface);
             if (sink.add(implemented)) {
                 getImplementedInterfaces(implemented, sink);
             }
         }
-        Class<?> superclass = type.getSuperclass();
-        if (superclass != null) {
-            getImplementedInterfaces(superclass, sink);
+        Class<?> rawSuperclass = rawType.getSuperclass();
+        if (rawSuperclass != null) {
+            getImplementedInterfaces(type.getSupertype(rawSuperclass), sink);
         }
     }
 
-    private static void getMembersRecursive(
-            Class<?> type, Set<Class<?>> visited, Set<Member> sink, boolean direct) {
+    private static void getMembersRecursive(TypeLiteral<?> type, Set<Class<?>> visited,
+            Set<QualifiedMember> sink, boolean direct) {
         // fields and constructors aren't inherited
+        Class<?> rawType = type.getRawType();
         if (direct) {
-            sink.addAll(Arrays.asList(type.getDeclaredConstructors()));
-            sink.addAll(Arrays.asList(type.getDeclaredFields()));
-        }
-
-        // don't add a method when an override is already present
-        for (Method method : type.getDeclaredMethods()) {
-            if (!method.isSynthetic() && !sink.contains(method)) {
-                sink.add(method);
+            for (Constructor constructor : rawType.getDeclaredConstructors()) {
+                sink.add(new QualifiedMember(type, constructor));
+            }
+            for (Field field : rawType.getDeclaredFields()) {
+                sink.add(new QualifiedMember(type, field));
             }
         }
 
-        Class<?> superClass = type.getSuperclass();
-        if (superClass != null) {
-            if (visited.add(superClass)) {
-                getMembersRecursive(superClass, visited, sink, false);
+        for (Method method : rawType.getDeclaredMethods()) {
+            QualifiedMember member = new QualifiedMember(type, method);
+            if (method.isSynthetic() || Modifier.isStatic(method.getModifiers())) {
+                continue;
+            }
+            /*
+             * Don't add a method when an override is already present. That could break covariant
+             * return types.
+             */
+            if (!sink.contains(member)) {
+                sink.add(member);
             }
         }
 
-        for (Class<?> implemented : type.getInterfaces()) {
-            if (visited.add(implemented)) {
-                getMembersRecursive(implemented, visited, sink, false);
+        Class<?> rawSuperclass = rawType.getSuperclass();
+        if (rawSuperclass != null) {
+            if (visited.add(rawSuperclass)) {
+                getMembersRecursive(type.getSupertype(rawSuperclass), visited, sink, false);
+            }
+        }
+
+        for (Class<?> rawInterface : rawType.getInterfaces()) {
+            if (visited.add(rawInterface)) {
+                getMembersRecursive(type.getSupertype(rawInterface), visited, sink, false);
             }
         }
     }
@@ -355,15 +378,14 @@ public final class ApiDump {
         ClassPathScanner scanner = new ClassPathScanner(ApiDump.class.getClassLoader());
         System.err.println("Scanning " + Arrays.toString(scanner.getClassPath()));
 
-
         for (String packageName : packages) {
             Set<Class<?>> types = scanner.scan(packageName).getTopLevelClassesRecursive();
             if (types.isEmpty()) {
-                throw new IllegalArgumentException("No types in " + packageName);
+                throw new IllegalArgumentException("No classes in " + packageName);
             }
 
             for (Class<?> type : types) {
-                getTypesRecursive(type, this.types);
+                getTypesRecursive(type, this.classes);
             }
         }
     }
@@ -373,6 +395,66 @@ public final class ApiDump {
             for (Class<?> inner : type.getClasses()) {
                 getTypesRecursive(inner, sink);
             }
+        }
+    }
+
+    /**
+     * Don't print members inherited by every class, unless it's clone(). We
+     * have to print clone() because it's eligible for covariant return classes,
+     * and subclasses may expose a different signature.
+     */
+    private static Set<QualifiedMember> computeMembersToSuppress() {
+        TreeSet<QualifiedMember> result = new TreeSet<QualifiedMember>(ORDER_MEMBERS);
+        getMembersRecursive(OBJECT, new TreeSet<Class<?>>(ORDER_CLASSES), result, true);
+        try {
+            result.remove(new QualifiedMember(OBJECT, Object.class.getDeclaredMethod("clone")));
+        } catch (NoSuchMethodException e) {
+            throw new AssertionError();
+        }
+        return Collections.unmodifiableSet(result);
+    }
+
+    static class QualifiedMember {
+        private final TypeLiteral<?> type;
+        private final Member member;
+
+        QualifiedMember(TypeLiteral<?> type, Member member) {
+            this.type = type;
+            this.member = member;
+        }
+
+        public boolean isField() {
+            return member instanceof Field;
+        }
+
+        public List<TypeLiteral<?>> getParameterTypes() {
+            return type.getParameterTypes(member);
+        }
+
+        public List<TypeLiteral<?>> getExceptionTypes() {
+            return type.getExceptionTypes(member);
+        }
+
+        private int rankByType() {
+            if (member instanceof Field) {
+                return 0;
+            } else if (member instanceof Constructor) {
+                return 1;
+            } else if (member instanceof Method) {
+                return 2;
+            } else {
+                throw new AssertionError();
+            }
+        }
+
+        @Override public boolean equals(Object o) {
+            return o instanceof QualifiedMember
+                    && ((QualifiedMember) o).type.equals(type)
+                    && ((QualifiedMember) o).member.equals(member);
+        }
+
+        @Override public int hashCode() {
+            return type.hashCode() ^ member.hashCode();
         }
     }
 
