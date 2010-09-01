@@ -102,6 +102,18 @@ public class MathBenchmark extends SimpleBenchmark {
         }
     }
 
+    public void timeCopySignD_strict(int reps) {
+        for (int rep = 0; rep < reps; ++rep) {
+            StrictMath.copySign(d, d);
+        }
+    }
+
+    public void timeCopySignF_strict(int reps) {
+        for (int rep = 0; rep < reps; ++rep) {
+            StrictMath.copySign(f, f);
+        }
+    }
+
     public void timeCos(int reps) {
         for (int rep = 0; rep < reps; ++rep) {
             Math.cos(d);
