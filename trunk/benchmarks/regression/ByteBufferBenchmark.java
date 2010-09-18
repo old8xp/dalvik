@@ -310,7 +310,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         byte[] src = new byte[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
@@ -331,7 +331,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         char[] src = new char[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
@@ -352,7 +352,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         double[] src = new double[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
@@ -373,7 +373,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         float[] src = new float[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
@@ -394,7 +394,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         int[] src = new int[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
@@ -415,7 +415,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         long[] src = new long[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
@@ -436,7 +436,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
         short[] src = new short[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(0);
+                dst.position(aligned ? 0 : 1);
                 dst.put(src);
             }
         }
