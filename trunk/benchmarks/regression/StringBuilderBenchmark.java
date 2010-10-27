@@ -106,7 +106,12 @@ public class StringBuilderBenchmark extends SimpleBenchmark {
     }
 
     public void timeAppendObject(int reps) {
-        Object o = new Object();
+        // We don't want to time the toString, so ensure we're calling a trivial one...
+        Object o = new Object() {
+            @Override public String toString() {
+                return "constant";
+            }
+        };
         for (int i = 0; i < reps; ++i) {
             StringBuilder sb = new StringBuilder();
             for (int j = 0; j < length; ++j) {
