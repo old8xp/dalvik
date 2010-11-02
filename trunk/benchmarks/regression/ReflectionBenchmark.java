@@ -19,18 +19,96 @@ package benchmarks.regression;
 import com.google.caliper.Param;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
+import java.lang.reflect.*;
 
 public class ReflectionBenchmark extends SimpleBenchmark {
     public void timeObject_getClass(int reps) throws Exception {
+        C c = new C();
         for (int rep = 0; rep < reps; ++rep) {
-            "".getClass();
+            c.getClass();
+        }
+    }
+
+    public void timeClass_getField(int reps) throws Exception {
+        Class<?> klass = C.class;
+        for (int rep = 0; rep < reps; ++rep) {
+            klass.getField("f");
+        }
+    }
+
+    public void timeClass_getDeclaredField(int reps) throws Exception {
+        Class<?> klass = C.class;
+        for (int rep = 0; rep < reps; ++rep) {
+            klass.getDeclaredField("f");
         }
     }
 
     public void timeClass_getMethod(int reps) throws Exception {
-        Class<?> klass = String.class;
+        Class<?> klass = C.class;
         for (int rep = 0; rep < reps; ++rep) {
-            klass.getMethod("length");
+            klass.getMethod("m");
+        }
+    }
+
+    public void timeClass_getDeclaredMethod(int reps) throws Exception {
+        Class<?> klass = C.class;
+        for (int rep = 0; rep < reps; ++rep) {
+            klass.getDeclaredMethod("m");
+        }
+    }
+
+    public void timeField_setInt(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Field f = klass.getDeclaredField("f");
+        C instance = new C();
+        for (int rep = 0; rep < reps; ++rep) {
+            f.setInt(instance, 1);
+        }
+    }
+
+    public void timeField_getInt(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Field f = klass.getDeclaredField("f");
+        C instance = new C();
+        for (int rep = 0; rep < reps; ++rep) {
+            f.getInt(instance);
+        }
+    }
+
+    public void timeMethod_invoke(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Method m = klass.getDeclaredMethod("setField", int.class);
+        C instance = new C();
+        for (int rep = 0; rep < reps; ++rep) {
+            m.invoke(instance, 1);
+        }
+    }
+
+    public void timeMethod_invokePreBoxed(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Method m = klass.getDeclaredMethod("setField", int.class);
+        C instance = new C();
+        Integer one = Integer.valueOf(1);
+        for (int rep = 0; rep < reps; ++rep) {
+            m.invoke(instance, one);
+        }
+    }
+
+    public void timeRegularMethodInvocation(int reps) throws Exception {
+        C instance = new C();
+        for (int rep = 0; rep < reps; ++rep) {
+            instance.setField(1);
+        }
+    }
+
+    public static class C {
+        public int f = 0;
+
+        public void m() {
+        }
+
+        public void setField(int value) {
+            f = value;
         }
     }
 }
