@@ -101,7 +101,7 @@ public class ReflectionBenchmark extends SimpleBenchmark {
 
     public void timeMethod_invokeStaticV(int reps) throws Exception {
         Class<?> klass = C.class;
-        Method m = klass.getDeclaredMethod("m");
+        Method m = klass.getDeclaredMethod("sm");
         C instance = new C();
         for (int rep = 0; rep < reps; ++rep) {
             m.invoke(null);
