@@ -78,6 +78,7 @@ public class XmlParseBenchmark extends SimpleBenchmark {
         while ((count = fileIn.read(buffer)) != -1) {
             bytesOut.write(buffer, 0, count);
         }
+        fileIn.close();
         return bytesOut.toByteArray();
     }
 
