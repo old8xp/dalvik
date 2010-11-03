@@ -43,6 +43,21 @@ public class ReflectionBenchmark extends SimpleBenchmark {
         }
     }
 
+    public void timeClass_getConstructor(int reps) throws Exception {
+        Class<?> klass = C.class;
+        for (int rep = 0; rep < reps; ++rep) {
+            klass.getConstructor();
+        }
+    }
+
+    public void timeClass_newInstance(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Constructor constructor = klass.getConstructor();
+        for (int rep = 0; rep < reps; ++rep) {
+            constructor.newInstance();
+        }
+    }
+
     public void timeClass_getMethod(int reps) throws Exception {
         Class<?> klass = C.class;
         for (int rep = 0; rep < reps; ++rep) {
@@ -75,7 +90,25 @@ public class ReflectionBenchmark extends SimpleBenchmark {
         }
     }
 
-    public void timeMethod_invoke(int reps) throws Exception {
+    public void timeMethod_invokeV(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Method m = klass.getDeclaredMethod("m");
+        C instance = new C();
+        for (int rep = 0; rep < reps; ++rep) {
+            m.invoke(instance);
+        }
+    }
+
+    public void timeMethod_invokeStaticV(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Method m = klass.getDeclaredMethod("m");
+        C instance = new C();
+        for (int rep = 0; rep < reps; ++rep) {
+            m.invoke(null);
+        }
+    }
+
+    public void timeMethod_invokeI(int reps) throws Exception {
         Class<?> klass = C.class;
         Method m = klass.getDeclaredMethod("setField", int.class);
         C instance = new C();
@@ -84,13 +117,30 @@ public class ReflectionBenchmark extends SimpleBenchmark {
         }
     }
 
-    public void timeMethod_invokePreBoxed(int reps) throws Exception {
+    public void timeMethod_invokePreBoxedI(int reps) throws Exception {
         Class<?> klass = C.class;
         Method m = klass.getDeclaredMethod("setField", int.class);
         C instance = new C();
         Integer one = Integer.valueOf(1);
         for (int rep = 0; rep < reps; ++rep) {
             m.invoke(instance, one);
+        }
+    }
+
+    public void timeMethod_invokeStaticI(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Method m = klass.getDeclaredMethod("setStaticField", int.class);
+        for (int rep = 0; rep < reps; ++rep) {
+            m.invoke(null, 1);
+        }
+    }
+
+    public void timeMethod_invokeStaticPreBoxedI(int reps) throws Exception {
+        Class<?> klass = C.class;
+        Method m = klass.getDeclaredMethod("setStaticField", int.class);
+        Integer one = Integer.valueOf(1);
+        for (int rep = 0; rep < reps; ++rep) {
+            m.invoke(null, one);
         }
     }
 
@@ -101,14 +151,33 @@ public class ReflectionBenchmark extends SimpleBenchmark {
         }
     }
 
+    public void timeRegularConstructor(int reps) throws Exception {
+        for (int rep = 0; rep < reps; ++rep) {
+            new C();
+        }
+    }
+
     public static class C {
+        public static int sf = 0;
         public int f = 0;
+
+        public C() {
+            // A non-empty constructor so we don't get optimized away.
+            f = 1;
+        }
 
         public void m() {
         }
 
+        public static void sm() {
+        }
+
         public void setField(int value) {
             f = value;
+        }
+
+        public static void setStaticField(int value) {
+            sf = value;
         }
     }
 }
