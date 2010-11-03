@@ -25,7 +25,7 @@ import java.util.ArrayList;
 /**
  * Is a hand-coded counted loop through an ArrayList cheaper than enhanced for?
  */
-public class DalvikBenchmark extends SimpleBenchmark {
+public class ArrayListIterationBenchmark extends SimpleBenchmark {
     ArrayList<Foo> mList = new ArrayList<Foo>();
     {
         for (int i = 0; i < 27; ++i) mList.add(new Foo());

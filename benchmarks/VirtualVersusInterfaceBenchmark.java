@@ -27,7 +27,7 @@ import java.util.HashMap;
  * Is there a performance reason to "Prefer virtual over interface", as the
  * Android documentation once claimed?
  */
-public class DalvikBenchmark extends SimpleBenchmark {
+public class VirtualVersusInterfaceBenchmark extends SimpleBenchmark {
     public void timeMapPut(int reps) {
         Map<String, String> map = new HashMap<String, String>();
         for (int i = 0; i < reps; ++i) {
