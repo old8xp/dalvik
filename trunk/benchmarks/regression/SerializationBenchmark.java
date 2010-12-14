@@ -21,6 +21,7 @@ import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import java.io.*;
 import java.lang.reflect.*;
+import java.util.*;
 
 public class SerializationBenchmark extends SimpleBenchmark {
     private static byte[] bytes(Object o) throws Exception {
@@ -29,6 +30,31 @@ public class SerializationBenchmark extends SimpleBenchmark {
         out.writeObject(o);
         out.close();
         return baos.toByteArray();
+    }
+
+    public void timeReadIntArray(int reps) throws Exception {
+        int[] intArray = new int[256];
+        readSingleObject(reps, intArray);
+    }
+
+    public void timeWriteIntArray(int reps) throws Exception {
+        int[] intArray = new int[256];
+        writeSingleObject(reps, intArray);
+    }
+    public void timeReadArrayListInteger(int reps) throws Exception {
+        ArrayList<Integer> object = new ArrayList<Integer>();
+        for (int i = 0; i < 256; ++i) {
+            object.add(i);
+        }
+        readSingleObject(reps, object);
+    }
+
+    public void timeWriteArrayListInteger(int reps) throws Exception {
+        ArrayList<Integer> object = new ArrayList<Integer>();
+        for (int i = 0; i < 256; ++i) {
+            object.add(i);
+        }
+        writeSingleObject(reps, object);
     }
 
     public void timeReadString(int reps) throws Exception {
