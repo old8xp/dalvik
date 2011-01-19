@@ -24,7 +24,7 @@ import com.google.caliper.SimpleBenchmark;
  * What does field access cost?
  */
 public class FieldAccessBenchmark extends SimpleBenchmark {
-    private class Inner {
+    private static class Inner {
         public int publicInnerIntVal;
         protected int protectedInnerIntVal;
         private int privateInnerIntVal;

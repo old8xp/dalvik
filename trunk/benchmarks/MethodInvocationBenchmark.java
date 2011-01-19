@@ -1,12 +1,12 @@
 /*
  * Copyright (C) 2010 Google Inc.
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -96,6 +96,41 @@ public class MethodInvocationBenchmark extends SimpleBenchmark {
         I c = new C();
         for (int i = 0; i < reps; ++i) {
             c.emptyInterface();
+        }
+    }
+
+    private static class Inner {
+        private void privateMethod() { }
+        protected void protectedMethod() { }
+        public void publicMethod() { }
+        void packageMethod() { }
+    }
+
+    public void timePrivateInnerPublicMethod(int reps) {
+        Inner inner = new Inner();
+        for (int i = 0; i < reps; ++i) {
+            inner.publicMethod();
+        }
+    }
+
+    public void timePrivateInnerProtectedMethod(int reps) {
+        Inner inner = new Inner();
+        for (int i = 0; i < reps; ++i) {
+            inner.protectedMethod();
+        }
+    }
+
+    public void timePrivateInnerPrivateMethod(int reps) {
+        Inner inner = new Inner();
+        for (int i = 0; i < reps; ++i) {
+            inner.privateMethod();
+        }
+    }
+
+    public void timePrivateInnerPackageMethod(int reps) {
+        Inner inner = new Inner();
+        for (int i = 0; i < reps; ++i) {
+            inner.packageMethod();
         }
     }
 }
