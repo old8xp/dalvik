@@ -38,6 +38,10 @@ public class CharacterBenchmark extends SimpleBenchmark {
 
     public enum Overload { CHAR, INT }
 
+    @Override public double nanosToUnits(double nanos) {
+        return nanos / 65536;
+    }
+
     public enum CharacterSet {
         ASCII(128),
         UNICODE(65536);
