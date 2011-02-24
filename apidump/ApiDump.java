@@ -375,8 +375,8 @@ public final class ApiDump {
     }
 
     private void addPackages(String... packages) throws IOException {
-        ClassPathScanner scanner = new ClassPathScanner(ApiDump.class.getClassLoader());
-        System.err.println("Scanning " + Arrays.toString(scanner.getClassPath()));
+        ClassPathScanner scanner = new ClassPathScanner();
+        System.err.println("Scanning " + scanner.getClassPath());
 
         for (String packageName : packages) {
             Set<Class<?>> types = scanner.scan(packageName).getTopLevelClassesRecursive();
