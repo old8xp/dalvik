@@ -348,7 +348,7 @@ public final class ApiDump {
 
         for (Method method : rawType.getDeclaredMethods()) {
             QualifiedMember member = new QualifiedMember(type, method);
-            if (method.isSynthetic() || Modifier.isStatic(method.getModifiers())) {
+            if (method.isSynthetic()) {
                 continue;
             }
             /*
