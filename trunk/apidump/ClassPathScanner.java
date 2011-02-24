@@ -16,10 +16,17 @@
 
 package apidump;
 
+import dalvik.system.DexFile;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
@@ -35,20 +42,21 @@ import java.util.zip.ZipFile;
  */
 final class ClassPathScanner {
 
+    static final Comparator<Class<?>> ORDER_CLASS_BY_NAME = new Comparator<Class<?>>() {
+        @Override public int compare(Class<?> a, Class<?> b) {
+            return a.getName().compareTo(b.getName());
+        }
+    };
     private static final String DOT_CLASS = ".class";
 
-    private final ClassLoader classLoader;
-    private final String[] classPath;
+    private final List<String> classPath;
     private final ClassFinder classFinder;
 
-    ClassPathScanner(ClassLoader classLoader) {
-        this.classLoader = classLoader;
-        this.classPath = vmClassPath();
-        this.classFinder = new JarClassFinder();
-    }
-
-    public String[] getClassPath() {
-        return classPath;
+    ClassPathScanner() throws IOException {
+        classPath = getClassPath();
+        classFinder = "Dalvik".equals(System.getProperty("java.vm.name"))
+                ? new ApkClassFinder()
+                : new JarClassFinder();
     }
 
     /**
@@ -58,11 +66,11 @@ final class ClassPathScanner {
     public Package scan(String packageName) throws IOException {
         Set<String> subpackageNames = new TreeSet<String>();
         Set<String> classNames = new TreeSet<String>();
-        Set<Class<?>> topLevelClasses = new HashSet<Class<?>>();
+        Set<Class<?>> topLevelClasses = new TreeSet<Class<?>>(ORDER_CLASS_BY_NAME);
         findClasses(packageName, classNames, subpackageNames);
         for (String className : classNames) {
             try {
-                topLevelClasses.add(Class.forName(className, false, classLoader));
+                topLevelClasses.add(Class.forName(className));
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }
@@ -161,6 +169,50 @@ final class ClassPathScanner {
     }
 
     /**
+     * Finds all classes and sub packages that are below the packageName and
+     * add them to the respective sets. Searches the package in a single APK.
+     *
+     * <p>This class uses the Android-only class DexFile. This class will fail
+     * to load on non-Android VMs.
+     */
+    static class ApkClassFinder implements ClassFinder {
+        public void find(File classPathEntry, String pathPrefix, String packageName,
+                Set<String> classNames, Set<String> subpackageNames) {
+            DexFile dexFile = null;
+            try {
+                dexFile = new DexFile(classPathEntry);
+                Enumeration<String> apkClassNames = dexFile.entries();
+                while (apkClassNames.hasMoreElements()) {
+                    String className = apkClassNames.nextElement();
+                    if (!className.startsWith(packageName)) {
+                        continue;
+                    }
+
+                    String subPackageName = packageName;
+                    int lastPackageSeparator = className.lastIndexOf('.');
+                    if (lastPackageSeparator > 0) {
+                        subPackageName = className.substring(0, lastPackageSeparator);
+                    }
+                    if (subPackageName.length() > packageName.length()) {
+                        subpackageNames.add(subPackageName);
+                    } else if (isToplevelClass(className)) {
+                        classNames.add(className);
+                    }
+                }
+            } catch (IOException ignore) {
+                // okay, presumably the dex file didn't contain any classes
+            } finally {
+                if (dexFile != null) {
+                    try {
+                        dexFile.close();
+                    } catch (IOException ignore) {
+                    }
+                }
+            }
+        }
+    }
+
+    /**
      * Returns true if a given file name represents a toplevel class.
      */
     private static boolean isToplevelClass(String fileName) {
@@ -176,12 +228,46 @@ final class ClassPathScanner {
     }
 
     /**
-     * Gets the class path from the System Property "java.class.path" and splits
-     * it up into the individual elements.
+     * Gets the class path from the $BOOTCLASSPATH if it exists and the System
+     * Property "java.class.path" and splits it up into the individual elements.
      */
-    private static String[] vmClassPath() {
+    public static List<String> getClassPath() throws IOException {
+        List<String> result = new ArrayList<String>();
+
+        String bootclasspath = System.getenv("BOOTCLASSPATH");
+        if (bootclasspath != null) {
+            /* dalvivkm doesn't permit scanning bootclasspath files, so copy them */
+            for (String pathElement : getPathElements(bootclasspath)) {
+                result.add(copyFile(new File(pathElement)).getPath());
+            }
+        }
+        
         String classPath = System.getProperty("java.class.path");
+        result.addAll(getPathElements(classPath));
+
+        return result;
+    }
+
+    /**
+     * Creates a temporary copy of {@code file} in and returns it.
+     */
+    private static File copyFile(File file) throws IOException {
+        File copy = File.createTempFile(file.getName(), ".copy");
+        copy.deleteOnExit();
+        FileInputStream in = new FileInputStream(file);
+        FileOutputStream out = new FileOutputStream(copy);
+        byte[] buffer = new byte[8192];
+        int count;
+        while ((count = in.read(buffer)) != -1) {
+            out.write(buffer, 0, count);
+        }
+        in.close();
+        out.close();
+        return copy;
+    }
+
+    private static List<String> getPathElements(String path) {
         String separator = System.getProperty("path.separator", ":");
-        return classPath.split(Pattern.quote(separator));
+        return Arrays.asList(path.split(Pattern.quote(separator)));
     }
 }
