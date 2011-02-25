@@ -85,14 +85,16 @@ public final class ApiDump {
     };
 
     private static final TypeLiteral<Object> OBJECT = new TypeLiteral<Object>() {};
-    private static final Set<QualifiedMember> MEMBERS_TO_SUPPRESS = computeMembersToSuppress();
+    private final Set<QualifiedMember> MEMBERS_TO_SUPPRESS = computeMembersToSuppress();
 
     private final TreeSet<Class<?>> classes = new TreeSet<Class<?>>(ORDER_CLASSES);
     private final boolean grepFormat;
+    private final boolean includeInherited;
     private final PrintStream out;
 
-    public ApiDump(boolean grepFormat, PrintStream out) {
+    public ApiDump(boolean grepFormat, boolean includeInherited, PrintStream out) {
         this.grepFormat = grepFormat;
+        this.includeInherited = includeInherited;
         this.out = out;
     }
 
@@ -363,7 +365,7 @@ public final class ApiDump {
         }
     }
 
-    private static void getMembersRecursive(TypeLiteral<?> type, Set<Class<?>> visited,
+    private void getMembersRecursive(TypeLiteral<?> type, Set<Class<?>> visited,
             Set<QualifiedMember> sink, boolean direct) {
         // fields and constructors aren't inherited
         Class<?> rawType = type.getRawType();
@@ -378,7 +380,8 @@ public final class ApiDump {
 
         for (Method method : rawType.getDeclaredMethods()) {
             QualifiedMember member = new QualifiedMember(type, method);
-            if (method.isSynthetic()) {
+            if (method.isSynthetic()
+                    || (!direct && Modifier.isStatic(method.getModifiers()))) {
                 continue;
             }
             /*
@@ -389,17 +392,19 @@ public final class ApiDump {
                 sink.add(member);
             }
         }
-
-        Class<?> rawSuperclass = rawType.getSuperclass();
-        if (rawSuperclass != null) {
-            if (visited.add(rawSuperclass)) {
-                getMembersRecursive(type.getSupertype(rawSuperclass), visited, sink, false);
+        
+        if (includeInherited) {
+            Class<?> rawSuperclass = rawType.getSuperclass();
+            if (rawSuperclass != null) {
+                if (visited.add(rawSuperclass)) {
+                    getMembersRecursive(type.getSupertype(rawSuperclass), visited, sink, false);
+                }
             }
-        }
 
-        for (Class<?> rawInterface : rawType.getInterfaces()) {
-            if (visited.add(rawInterface)) {
-                getMembersRecursive(type.getSupertype(rawInterface), visited, sink, false);
+            for (Class<?> rawInterface : rawType.getInterfaces()) {
+                if (visited.add(rawInterface)) {
+                    getMembersRecursive(type.getSupertype(rawInterface), visited, sink, false);
+                }
             }
         }
     }
@@ -434,7 +439,7 @@ public final class ApiDump {
      * have to print clone() because it's eligible for covariant return classes,
      * and subclasses may expose a different signature.
      */
-    private static Set<QualifiedMember> computeMembersToSuppress() {
+    private Set<QualifiedMember> computeMembersToSuppress() {
         TreeSet<QualifiedMember> result = new TreeSet<QualifiedMember>(ORDER_MEMBERS);
         getMembersRecursive(OBJECT, new TreeSet<Class<?>>(ORDER_CLASSES), result, true);
         try {
@@ -498,6 +503,7 @@ public final class ApiDump {
         }
         
         boolean grepFormat = false;
+        boolean includeInherited = false;
         
         List<String> argsList = new ArrayList<String>();
         argsList.addAll(Arrays.asList(args));
@@ -507,10 +513,13 @@ public final class ApiDump {
             if (arg.equals("--grep-format")) {
                 grepFormat = true;
                 i.remove();
+            } else if (arg.equals("--include-inherited")) {
+                includeInherited = true;
+                i.remove();
             }
         }
 
-        ApiDump dump = new ApiDump(grepFormat, System.out);
+        ApiDump dump = new ApiDump(grepFormat, includeInherited, System.out);
         dump.addPackages(argsList);
         dump.dump();
     }
