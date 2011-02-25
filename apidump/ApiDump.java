@@ -25,6 +25,7 @@ import java.lang.reflect.Member;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.TypeVariable;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -87,9 +88,11 @@ public final class ApiDump {
     private static final Set<QualifiedMember> MEMBERS_TO_SUPPRESS = computeMembersToSuppress();
 
     private final TreeSet<Class<?>> classes = new TreeSet<Class<?>>(ORDER_CLASSES);
+    private final boolean grepFormat;
     private final PrintStream out;
 
-    public ApiDump(PrintStream out) {
+    public ApiDump(boolean grepFormat, PrintStream out) {
+        this.grepFormat = grepFormat;
         this.out = out;
     }
 
@@ -116,11 +119,13 @@ public final class ApiDump {
 
         for (QualifiedMember member : members) {
             if (!MEMBERS_TO_SUPPRESS.contains(member)) {
-                dumpMemberDeclaration(member);
+                dumpMemberDeclaration(type, member);
             }
         }
 
-        out.print("}\n");
+        if (!grepFormat) {
+            out.print("}\n");
+        }
     }
 
     /**
@@ -132,6 +137,13 @@ public final class ApiDump {
      */
     private void dumpClassDeclaration(Class<?> rawType) {
         TypeLiteral<?> type = TypeLiteral.get(rawType);
+        
+        if (grepFormat) {
+            out.print(rawType.getName());
+            out.print("\t");
+        }
+
+        String supertypeListSeparator = grepFormat ? " " : "\n    ";
 
         dumpModifiers(rawType.getModifiers(), rawType.isEnum(),
                 rawType.isEnum() || rawType.isInterface());
@@ -146,16 +158,22 @@ public final class ApiDump {
         // TODO: skip private supertypes
         Class<?> rawSuperclass = rawType.getSuperclass();
         if (rawSuperclass != null && rawSuperclass != Object.class) {
-            out.print("\n    extends " + type.getSupertype(rawSuperclass));
+            out.print(supertypeListSeparator);
+            out.print("extends " + type.getSupertype(rawSuperclass));
         }
 
         Set<TypeLiteral<?>> allImplementedInterfaces = new TreeSet<TypeLiteral<?>>(ORDER_TYPES);
         getImplementedInterfaces(TypeLiteral.get(rawType), allImplementedInterfaces);
         if (!allImplementedInterfaces.isEmpty()) {
-            out.print("\n    implements " + join(", ", allImplementedInterfaces));
+            out.print(supertypeListSeparator);
+            out.print("implements " + join(", ", allImplementedInterfaces));
         }
 
-        out.print(" {\n");
+        if (grepFormat) {
+            out.print(" {}\n");
+        } else {
+            out.print(" {\n");
+        }
     }
 
     private static String join(String delimiter, Iterable<?> args) {
@@ -177,13 +195,25 @@ public final class ApiDump {
      *
      *   public HashMap(int, float);
      *   protected void finalize() throws java.lang.Throwable;
+     * 
+     * @param ofType the type this member is being dumped for. For inherited
+     *     methods, this may differ from the member's declaring type which could
+     *     be a supertype of this parameter.
      */
-    private void dumpMemberDeclaration(QualifiedMember member) {
+    private void dumpMemberDeclaration(Class<?> ofType, QualifiedMember member) {
         if (!isVisible(member.member.getModifiers())) {
             return;
         }
+        
+        if (grepFormat) {
+            out.print(ofType.getName());
+            out.print(".");
+            out.print(member.member instanceof Constructor ? "<init>" : member.member.getName());
+            out.print("\t");
+        } else {
+            out.print("  ");
+        }
 
-        out.print("  ");
         Class<?> declaringClass = member.type.getRawType();
         dumpModifiers(member.member.getModifiers(), declaringClass.isEnum(),
                 declaringClass.isEnum() || declaringClass.isInterface());
@@ -374,14 +404,15 @@ public final class ApiDump {
         }
     }
 
-    private void addPackages(String... packages) throws IOException {
+    private void addPackages(List<String> packages) throws IOException {
         ClassPathScanner scanner = new ClassPathScanner();
         System.err.println("Scanning " + scanner.getClassPath());
 
         for (String packageName : packages) {
             Set<Class<?>> types = scanner.scan(packageName).getTopLevelClassesRecursive();
             if (types.isEmpty()) {
-                throw new IllegalArgumentException("No classes in " + packageName);
+                System.err.println("No classes found in " + packageName);
+                continue;
             }
 
             for (Class<?> type : types) {
@@ -460,11 +491,27 @@ public final class ApiDump {
 
     public static void main(String[] args) throws IOException {
         if (args.length == 0) {
-            System.out.println("Usage: ApiDump <package names...>");
+            System.out.println("Usage: ApiDump [options] <package names...>");
+            System.out.println();
+            System.out.println("Options:");
+            System.out.println("  --grep-format: include type name on every line");
+        }
+        
+        boolean grepFormat = false;
+        
+        List<String> argsList = new ArrayList<String>();
+        argsList.addAll(Arrays.asList(args));
+
+        for (Iterator<String> i = argsList.iterator(); i.hasNext(); ) {
+            String arg = i.next();
+            if (arg.equals("--grep-format")) {
+                grepFormat = true;
+                i.remove();
+            }
         }
 
-        ApiDump dump = new ApiDump(System.out);
-        dump.addPackages(args);
+        ApiDump dump = new ApiDump(grepFormat, System.out);
+        dump.addPackages(argsList);
         dump.dump();
     }
 }
