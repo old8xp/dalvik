@@ -257,7 +257,7 @@ public final class BinaryHprofReader {
     private void parseStringInUtf8(int recordLength) throws IOException {
         int stringId = in.readInt();
         byte[] bytes = new byte[recordLength - BinaryHprof.ID_SIZE];
-        in.read(bytes);
+        readFully(in, bytes);
         String string = new String(bytes, "UTF-8");
         if (TRACE) {
             System.out.println("\tstring=" + string);
@@ -265,6 +265,19 @@ public final class BinaryHprofReader {
         String old = idToString.put(stringId, string);
         if (old != null) {
             throw new MalformedHprofException("Duplicate string id: " + stringId);
+        }
+    }
+
+    private static void readFully(InputStream in, byte[] dst) throws IOException {
+        int offset = 0;
+        int byteCount = dst.length;
+        while (byteCount > 0) {
+            int bytesRead = in.read(dst, offset, byteCount);
+            if (bytesRead < 0) {
+                throw new EOFException();
+            }
+            offset += bytesRead;
+            byteCount -= bytesRead;
         }
     }
 
