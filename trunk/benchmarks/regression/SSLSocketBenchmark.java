@@ -25,8 +25,7 @@ import java.net.InetAddress;
 import java.net.Socket;
 import java.net.URL;
 import javax.net.SocketFactory;
-import org.apache.harmony.xnet.provider.jsse.OpenSSLSocketFactoryImpl;
-import org.apache.harmony.xnet.provider.jsse.SSLSocketFactoryImpl;
+import javax.net.ssl.SSLContext;
 
 public class SSLSocketBenchmark extends SimpleBenchmark {
 
@@ -77,16 +76,19 @@ public class SSLSocketBenchmark extends SimpleBenchmark {
     private SocketFactory sf;
 
     @Override protected void setUp() throws Exception {
+        SSLContext sslContext;
         switch (implementation) {
             case OPENSSL:
-                this.sf = new OpenSSLSocketFactoryImpl();
+                sslContext = SSLContext.getInstance("SSL", "AndroidOpenSSL");
                 break;
             case HARMONY:
-                this.sf = new SSLSocketFactoryImpl();
+                sslContext = SSLContext.getInstance("SSL", "HarmonyJSSE");
                 break;
             default:
                 throw new RuntimeException(implementation.toString());
         }
+        sslContext.init(null, null, null);
+        this.sf = sslContext.getSocketFactory();
     }
 
     public void time(int reps) throws Exception {
