@@ -20,7 +20,7 @@ import java.io.IOException;
 
 public final class MalformedHprofException extends IOException {
 
-    private static final long serialVersionUID = 0L;
+    private static final long serialVersionUID = 8558990237047894213L;
 
     MalformedHprofException(String message) {
         super(message);
