@@ -1,0 +1,120 @@
+<?xml version="1.0"?>
+
+<project name="profiler" default="install">
+    <!-- can be overridden at the command line with -Dversion=
+         or in IDEA, in the ant properties dialog -->
+    <property name="version" value="0.0"/> <!-- subversion revision? -->
+
+    <property name="profilerclasses" value="build/classes/profiler"/>
+    <property name="testclasses" value="build/classes/test"/>
+    <property name="installroot" value="build/profiler-${version}"/>
+    <property name="javadocroot" value="${installroot}/docs/api"/>
+
+    <path id="testdependencies">
+        <pathelement location="${profilerclasses}"/>
+        <pathelement location="lib/junit.jar"/>
+    </path>
+
+    <target name="compile"
+            description="Compile all Java source code">
+        <mkdir dir="${profilerclasses}"/>
+        <javac srcdir="src/main/java"
+               includes="dalvik/profiler/**"
+               destdir="${profilerclasses}"
+               debug="on"
+               source="1.5"
+               target="1.5"
+               includeantruntime="false">
+            <compilerarg value="-Xlint"/>
+            <!--compilerarg value="-Werror"/-->
+        </javac>
+
+        <mkdir dir="${testclasses}"/>
+        <javac srcdir="src/test/java"
+               debug="on"
+               destdir="${testclasses}"
+               source="1.5"
+               target="1.5"
+               includeantruntime="false">
+            <compilerarg value="-Xlint"/>
+            <!--compilerarg value="-Werror"/-->
+            <classpath>
+                <path refid="testdependencies"/>
+            </classpath>
+        </javac>
+    </target>
+
+    <target name="test"
+            depends="compile"
+            description="Run unit tests">
+        <junit fork="true" printsummary="true" haltonfailure="true">
+            <assertions><enable/></assertions>
+            <classpath>
+                <pathelement location="${testclasses}"/>
+                <path refid="testdependencies"/>
+            </classpath>
+            <batchtest>
+                <fileset dir="${testclasses}" includes="**/*Test.class"/>
+            </batchtest>
+        </junit>
+    </target>
+
+    <target name="buildjar"
+            depends="compile"
+            description="Build JAR archive of profiler">
+        <mkdir dir="${installroot}/lib"/>
+
+        <jar destfile="${installroot}/lib/profiler-${version}.jar">
+            <fileset dir="${profilerclasses}"/>
+            <manifest>
+                <attribute name="Main-Class" value="dalvik.profiler.HprofBinaryToAscii"/>
+            </manifest>
+        </jar>
+    </target>
+
+    <target name="javadoc"
+            description="Generate API documentation to ${javadocroot}">
+        <delete dir="${javadocroot}"/> <!-- TODO: figure out how to make this more incremental -->
+        <mkdir dir="${javadocroot}"/>
+        <javadoc packagenames="dalvik.profiler"
+                 destdir="${javadocroot}"
+                 use="true"
+                 author="true"
+                 protected="true"
+                 windowtitle="Profiler ${version}">
+            <sourcepath>
+                <pathelement location="src/main/java"/>
+            </sourcepath>
+            <link href="http://java.sun.com/javase/6/docs/api"/>
+        </javadoc>
+    </target>
+
+    <target name="install" depends="buildjar, javadoc"
+            description="Create a complete installation tree in ./build/profiler-*">
+        <mkdir dir="${installroot}"/>
+        <zip zipfile="${installroot}/src-${version}.zip">
+            <fileset dir="src/main/java"/>
+        </zip>
+
+        <copy toDir="${installroot}" file="COPYING"/>
+        <chmod perm="ugo=rx" file="${installroot}/profiler"/>
+    </target>
+
+    <target name="dist"
+            depends="install"
+            description="Create a zipped distribution for upload to Google Code">
+        <zip destfile="build/profiler-${version}.zip">
+            <zipfileset dir="build/profiler-${version}"
+                        prefix="profiler-${version}"/>
+            <zipfileset file="build/profiler-${version}/profiler" 
+                        prefix="profiler-${version}"
+                        filemode="555"/>
+        </zip>
+    </target>
+
+    <target name="clean"
+            description="Remove all generated files.">
+        <delete dir="build"/>
+    </target>
+
+</project>
