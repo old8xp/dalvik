@@ -29,15 +29,14 @@ public class AnnotatedElementBenchmark extends SimpleBenchmark {
     private Field field;
     private Method method;
 
-    @Override
-    protected void setUp() throws Exception {
+    @Override protected void setUp() throws Exception {
         type = Type.class;
         field = Type.class.getField("field");
         method = Type.class.getMethod("method", String.class);
     }
 
 
-    // get annotations by member type
+    // get annotations by member type and method
 
     public void timeGetTypeAnnotations(int reps) {
         for (int i = 0; i < reps; i++) {
@@ -60,6 +59,42 @@ public class AnnotatedElementBenchmark extends SimpleBenchmark {
     public void timeGetParameterAnnotations(int reps) {
         for (int i = 0; i < reps; i++) {
             method.getParameterAnnotations();
+        }
+    }
+
+    public void timeGetTypeAnnotation(int reps) {
+        for (int i = 0; i < reps; i++) {
+            type.getAnnotation(Marker.class);
+        }
+    }
+
+    public void timeGetFieldAnnotation(int reps) {
+        for (int i = 0; i < reps; i++) {
+            field.getAnnotation(Marker.class);
+        }
+    }
+
+    public void timeGetMethodAnnotation(int reps) {
+        for (int i = 0; i < reps; i++) {
+            method.getAnnotation(Marker.class);
+        }
+    }
+
+    public void timeIsTypeAnnotationPresent(int reps) {
+        for (int i = 0; i < reps; i++) {
+            type.isAnnotationPresent(Marker.class);
+        }
+    }
+
+    public void timeIsFieldAnnotationPresent(int reps) {
+        for (int i = 0; i < reps; i++) {
+            field.isAnnotationPresent(Marker.class);
+        }
+    }
+
+    public void timeIsMethodAnnotationPresent(int reps) {
+        for (int i = 0; i < reps; i++) {
+            method.isAnnotationPresent(Marker.class);
         }
     }
 
@@ -92,27 +127,6 @@ public class AnnotatedElementBenchmark extends SimpleBenchmark {
     public void timeGetAllReturnsThreeAnnotations(int reps) {
         for (int i = 0; i < reps; i++) {
             HasThreeAnnotations.class.getAnnotations();
-        }
-    }
-
-
-    // get annotations by method call
-
-    public void timeGetAnnotations(int reps) {
-        for (int i = 0; i < reps; i++) {
-            HasThreeAnnotations.class.getAnnotations();
-        }
-    }
-
-    public void timeGetAnnotation(int reps) {
-        for (int i = 0; i < reps; i++) {
-            HasThreeAnnotations.class.getAnnotation(Small.class);
-        }
-    }
-
-    public void timeIsAnnotationPresent(int reps) {
-        for (int i = 0; i < reps; i++) {
-            HasThreeAnnotations.class.isAnnotationPresent(Small.class);
         }
     }
 
