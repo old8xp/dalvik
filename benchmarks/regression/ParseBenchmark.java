@@ -21,21 +21,58 @@ import android.util.JsonToken;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.StringWriter;
+import javax.xml.parsers.DocumentBuilderFactory;
 import org.json.JSONArray;
+import org.xml.sax.InputSource;
+import org.xmlpull.v1.XmlPullParser;
 
+/**
+ * Measure throughput of various parsers.
+ *
+ * <p>This benchmark requires that ParseBenchmarkData.zip is on the classpath.
+ * That file contains Twitter feed data, which is representative of what
+ * applications will be parsing.
+ *
+ * <p>The parsers attempt to do what a real parser would do: match properties by
+ * name and read their values as their proper type. Unlike a real parser, this
+ * benchmark discards the values as they're read.
+ */
 public final class ParseBenchmark extends SimpleBenchmark {
+    private String json;
+    private String xml;
+
+    @Override protected void setUp() throws Exception {
+        json = resourceToString("/tweets.json");
+        xml = resourceToString("/tweets.xml");
+    }
 
     public void timeParseStreamingJson(int reps) throws Exception {
         for (int i = 0; i < reps; i++) {
-            new TweetsJsonParser().parse(new StringReader(tweetsJson));
+            new TweetsJsonParser().parse(new StringReader(json));
         }
     }
 
     public void timeParseJsonObject(int reps) throws Exception {
         for (int i = 0; i < reps; i++) {
-            new JSONArray(tweetsJson);
+            new JSONArray(json);
+        }
+    }
+
+    public void timeParseStreamingXml(int reps) throws Exception {
+        for (int i = 0; i < reps; i++) {
+            new TweetsXmlParser().parse(new StringReader(xml));
+        }
+    }
+
+    public void timeParseXmlObject(int reps) throws Exception {
+        for (int i = 0; i < reps; i++) {
+            DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                    .parse(new InputSource(new StringReader(xml)));
         }
     }
 
@@ -43,26 +80,36 @@ public final class ParseBenchmark extends SimpleBenchmark {
         Runner.main(ParseBenchmark.class, args);
     }
 
-    /** http://api.twitter.com/1/statuses/public_timeline.json */
-    private static final String tweetsJson = "[{\"text\":\"Help me get my free prize! You can get one too, just ask me how! http:\\/\\/bit.ly\\/fudqBX\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:18 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529189840896000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"C0DEED\",\"default_profile_image\":false,\"default_profile\":true,\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/a\\/1302724321\\/images\\/themes\\/theme1\\/bg.png\",\"created_at\":\"Sat Mar 19 18:38:27 +0000 2011\",\"description\":\"Packages and free videos available for weight loss and strength building - http:\\/\\/bit.ly\\/enSMow\\r\\n\",\"contributors_enabled\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":0,\"id_str\":\"268912788\",\"profile_text_color\":\"333333\",\"follow_request_sent\":null,\"statuses_count\":5245,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_images\\/1279458894\\/ladygaga_normal.JPG\",\"is_translator\":false,\"profile_background_tile\":false,\"url\":\"http:\\/\\/bit.ly\\/h0AiM1\",\"screen_name\":\"LadyGagaFanszs\",\"following\":null,\"time_zone\":null,\"friends_count\":343,\"profile_link_color\":\"0084B4\",\"protected\":false,\"listed_count\":0,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":155,\"location\":\"London\",\"name\":\"LadyGaga Fans\",\"id\":268912788,\"profile_use_background_image\":true,\"utc_offset\":null},\"id\":60529189840896000,\"coordinates\":null},{\"text\":\"im keeping your candy coated valentines, memories of you when you were mine.\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:17 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529189098496000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"C0DEED\",\"default_profile_image\":false,\"default_profile\":false,\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_background_images\\/196596407\\/110123-124351.jpg\",\"created_at\":\"Fri Jun 26 02:44:44 +0000 2009\",\"description\":\"Life Isn't What You Expect It 2 Be....\",\"contributors_enabled\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":1,\"id_str\":\"50889965\",\"profile_text_color\":\"333333\",\"follow_request_sent\":null,\"statuses_count\":590,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_images\\/1297898431\\/189814_1947864617533_1270080026_2402897_1777575_n_normal.jpg\",\"is_translator\":false,\"profile_background_tile\":true,\"url\":null,\"screen_name\":\"SpoiledBratDuhh\",\"following\":null,\"time_zone\":\"Central Time (US & Canada)\",\"friends_count\":202,\"profile_link_color\":\"0084B4\",\"protected\":false,\"listed_count\":0,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":73,\"location\":\"detroit\",\"name\":\"Doniece Wilkins\",\"id\":50889965,\"profile_use_background_image\":true,\"utc_offset\":-21600},\"id\":60529189098496000,\"coordinates\":null},{\"text\":\"Toya bratha dat rap resemble a monkey ape\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:17 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529187634688000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/twitter.com\\/\\\" rel=\\\"nofollow\\\"\\u003ETwitter for iPhone\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"C0DEED\",\"default_profile_image\":false,\"default_profile\":true,\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/a\\/1302724321\\/images\\/themes\\/theme1\\/bg.png\",\"created_at\":\"Tue Mar 29 05:25:12 +0000 2011\",\"description\":\"22\\/model\\/singer...jus creatin myself\\u2665 if u real wid me im real wid u,never had a bf..talk 2 sum tho :)&i RT like a mofo 2 lol..\",\"contributors_enabled\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":44,\"id_str\":\"273796890\",\"profile_text_color\":\"333333\",\"follow_request_sent\":null,\"statuses_count\":6173,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_images\\/1317787394\\/image_normal.jpg\",\"is_translator\":false,\"profile_background_tile\":false,\"url\":null,\"screen_name\":\"starstarstar24\",\"following\":null,\"time_zone\":null,\"friends_count\":869,\"profile_link_color\":\"0084B4\",\"protected\":false,\"listed_count\":4,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":687,\"location\":\"louweezyana\\/Houston\",\"name\":\"\\u2665G\\u2665\",\"id\":273796890,\"profile_use_background_image\":true,\"utc_offset\":null},\"id\":60529187634688000,\"coordinates\":null},{\"text\":\"Wassup...\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:17 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529186477056000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/twitter.com\\/\\\" rel=\\\"nofollow\\\"\\u003ETwitter for iPhone\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"statuses_count\":10842,\"profile_background_color\":\"080808\",\"profile_background_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_background_images\\/220017002\\/Picnik_collage.jpg\",\"created_at\":\"Sun Dec 05 00:53:41 +0000 2010\",\"description\":\"To Blessed To Be Stressed!-One Of A Kind Young Lady With Brains And The Beauty-#Team231 #TeamHeat-Welcome To My World Followers\\u2665 Followed by @WakaFlockaBSM =)\",\"default_profile\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":45,\"id_str\":\"222974322\",\"default_profile_image\":false,\"profile_text_color\":\"f013a3\",\"profile_sidebar_fill_color\":\"030303\",\"profile_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_images\\/1316636770\\/image_normal.jpg\",\"geo_enabled\":false,\"profile_background_tile\":true,\"show_all_inline_media\":true,\"follow_request_sent\":null,\"url\":null,\"screen_name\":\"I_Am_Beauty231\",\"contributors_enabled\":false,\"following\":null,\"time_zone\":\"Mountain Time (US & Canada)\",\"profile_link_color\":\"ff0055\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"f7f7f7\",\"followers_count\":550,\"location\":\"In My Own World\",\"name\":\"Elexis Jenkins\",\"is_translator\":false,\"friends_count\":515,\"id\":222974322,\"listed_count\":2,\"profile_use_background_image\":true,\"utc_offset\":-25200},\"id\":60529186477056000,\"coordinates\":null},{\"text\":\"\\u672c\\u65e5\\u3001\\u30ef\\u30f3\\u3061\\u3083\\u3093\\u30ea\\u30d5\\u30ec\\uff08\\u30de\\u30c3\\u30b5\\u30fc\\u30b8\\uff09\\u3092\\u958b\\u50ac\\u3002\\u5f53\\u65e5\\u67a0\\u3082\\u82e5\\u5e72\\u3042\\u308a\\u307e\\u3059\\u3088\\u266a\\u7d9a\\u304f\\u4f59\\u9707\\u306e\\u30b9\\u30c8\\u30ec\\u30b9\\u3092\\u307b\\u3050\\u3057\\u3066\\u3042\\u3052\\u307e\\u3057\\u3087\\u3046(  \\uffe3\\u30fc\\uffe3)\\u30ceTEL\\uff1a045\\uff70450\\uff706710 \\u3000http:\\/\\/amba.to\\/fVatF6 #inu #yokohama\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:16 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529185210368000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/www.tweetcaster.com\\\" rel=\\\"nofollow\\\"\\u003ETweetCaster\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"352726\",\"profile_background_image_url\":\"http:\\/\\/a0.twimg.com\\/a\\/1302724321\\/images\\/themes\\/theme5\\/bg.gif\",\"created_at\":\"Thu Mar 18 10:00:56 +0000 2010\",\"description\":\"\\u6a2a\\u6d5c\\u99c5\\u304d\\u305f\\u6771\\u53e3\\u3088\\u308a\\u5f92\\u6b693\\u5206\\u3002\\u30c9\\u30c3\\u30b0\\u30db\\u30c6\\u30eb\\u3068\\u30c8\\u30ea\\u30df\\u30f3\\u30b0\\u3001\\u305d\\u3057\\u3066\\u30b0\\u30c3\\u30ba\\u8ca9\\u58f2\\u306e\\u304a\\u5e97\\u3067\\u3059\\u266a\",\"follow_request_sent\":null,\"lang\":\"ja\",\"notifications\":null,\"favourites_count\":0,\"id_str\":\"124124729\",\"contributors_enabled\":false,\"profile_text_color\":\"3E4415\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"99CC33\",\"profile_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_images\\/1278693204\\/2fe22eed-c6b7-46dc-91f8-7f591614e3c0_normal.png\",\"is_translator\":false,\"profile_background_tile\":false,\"friends_count\":63,\"listed_count\":41,\"url\":\"http:\\/\\/www.evoldog.net\\/\",\"screen_name\":\"evoldogshop\",\"statuses_count\":2235,\"following\":null,\"time_zone\":\"Hawaii\",\"profile_link_color\":\"D02B55\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"829D5E\",\"followers_count\":666,\"location\":\"\\u6a2a\\u6d5c\\u30d9\\u30a4\\u30af\\u30a9\\u30fc\\u30bf\\u30fc2F\\u30fb3F\",\"name\":\"\\u6a2a\\u6d5c \\u30a4\\u30fc\\u30dc\\u30eb \\u30c9\\u30c3\\u30b0 \\u793e\\u9577\",\"id\":124124729,\"default_profile_image\":false,\"default_profile\":false,\"profile_use_background_image\":true,\"utc_offset\":-36000},\"id\":60529185210368000,\"coordinates\":null},{\"text\":\"Cada coisa qe eu escuto HAHAHA. Vem jogando verde nemim, nao funciona, eu sou #CORINTHIANS\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:16 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529182173696000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"friends_count\":72,\"profile_background_color\":\"1c191c\",\"profile_background_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_background_images\\/209710645\\/Capturar.JPG\",\"created_at\":\"Wed Sep 08 12:20:08 +0000 2010\",\"description\":\": )\",\"lang\":\"en\",\"notifications\":null,\"favourites_count\":0,\"id_str\":\"188304027\",\"default_profile_image\":false,\"profile_text_color\":\"383238\",\"show_all_inline_media\":false,\"contributors_enabled\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"ffffff\",\"profile_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_images\\/1240676894\\/scrapeenet_20110210213252CLs3jo_normal.gif\",\"profile_background_tile\":true,\"follow_request_sent\":null,\"url\":null,\"screen_name\":\"igorosendo\",\"default_profile\":false,\"statuses_count\":837,\"following\":null,\"time_zone\":\"Brasilia\",\"profile_link_color\":\"f5082f\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"64C4B0\",\"followers_count\":70,\"location\":\"Brasil\",\"name\":\"Igor Rosendo\",\"is_translator\":false,\"id\":188304027,\"listed_count\":0,\"profile_use_background_image\":true,\"utc_offset\":-10800},\"id\":60529182173696000,\"coordinates\":null},{\"text\":\"Quem um dia ir\\u00e1 dizer que existe raz\\u00e3o nas coisas feitas pelo cora\\u00e7\\u00e3o? E quem ir\\u00e1 dizer que n\\u00e3o existe raz\\u00e3o?\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:15 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529179879424000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"friends_count\":76,\"profile_background_color\":\"BADFCD\",\"profile_background_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_background_images\\/233453065\\/OgAAACjIQP7dTbftrkG4iYEQ3fzJ6FuaapcmdWTyS2CGZk4BjNrYn9m7HEkitKoMceDGTIKdjR5rWQRjSnNOtFICQzgAm1T1UCe4TdI9ZAyjyQJJI5mzuPvKiRZ9.jpg\",\"created_at\":\"Thu Feb 18 00:22:52 +0000 2010\",\"description\":\"The girl was bad. The girl was dangerous.\",\"lang\":\"en\",\"notifications\":null,\"favourites_count\":23,\"id_str\":\"115218052\",\"default_profile_image\":false,\"profile_text_color\":\"080808\",\"show_all_inline_media\":false,\"contributors_enabled\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"ffffff\",\"profile_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_images\\/1313052843\\/Foto-0882_normal.jpg\",\"profile_background_tile\":true,\"follow_request_sent\":null,\"url\":null,\"screen_name\":\"stephaniewtf\",\"default_profile\":false,\"statuses_count\":2438,\"following\":null,\"time_zone\":\"Santiago\",\"profile_link_color\":\"262273\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"0a0800\",\"followers_count\":118,\"location\":\"Fortaleza - Brasil\",\"name\":\"St\\u00e9phanie\",\"is_translator\":false,\"id\":115218052,\"listed_count\":11,\"profile_use_background_image\":true,\"utc_offset\":-14400},\"id\":60529179879424000,\"coordinates\":null},{\"text\":\"Forget this shit, sorry i'm not getting registered as a sex offender. Done for the night, eff that.\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:15 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529178503680000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/twitter.com\\/devices\\\" rel=\\\"nofollow\\\"\\u003Etxt\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"friends_count\":30,\"profile_background_color\":\"C0DEED\",\"profile_background_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_background_images\\/211079596\\/xd058824751dc5e91a395e27c6a8213c.png\",\"created_at\":\"Mon Nov 15 20:34:21 +0000 2010\",\"description\":\"\",\"lang\":\"en\",\"notifications\":null,\"favourites_count\":6,\"id_str\":\"216108057\",\"default_profile_image\":false,\"profile_text_color\":\"333333\",\"show_all_inline_media\":false,\"contributors_enabled\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_images\\/1167999876\\/Kelsey_2011_normal.jpg\",\"profile_background_tile\":true,\"follow_request_sent\":null,\"url\":null,\"screen_name\":\"kchattin687\",\"default_profile\":false,\"statuses_count\":326,\"following\":null,\"time_zone\":null,\"profile_link_color\":\"0084B4\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":29,\"location\":\"\",\"name\":\"Kelsey Holden \",\"is_translator\":false,\"id\":216108057,\"listed_count\":0,\"profile_use_background_image\":true,\"utc_offset\":null},\"id\":60529178503680000,\"coordinates\":null},{\"text\":\"22:22\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:15 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529178394624000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"fafafa\",\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_background_images\\/232612874\\/Kesha.jpg\",\"created_at\":\"Fri Oct 30 18:56:07 +0000 2009\",\"description\":\"Decifra-me ou te devoro. | @HeyLeet \\u2665\",\"lang\":\"en\",\"notifications\":null,\"favourites_count\":11,\"id_str\":\"86374056\",\"default_profile_image\":false,\"show_all_inline_media\":false,\"geo_enabled\":true,\"profile_text_color\":\"bd072c\",\"contributors_enabled\":false,\"profile_sidebar_fill_color\":\"\",\"profile_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_images\\/1289649881\\/naoe_normal.jpg\",\"profile_background_tile\":true,\"follow_request_sent\":null,\"statuses_count\":41129,\"url\":\"http:\\/\\/meadiciona.com\\/patrickarrabal\",\"screen_name\":\"PatrickArrabal\",\"is_translator\":false,\"following\":null,\"time_zone\":\"Santiago\",\"profile_link_color\":\"1cd6ca\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"000000\",\"followers_count\":2356,\"location\":\"Rond\\u00f4nia.\",\"name\":\"Patrick Miguel\",\"friends_count\":220,\"id\":86374056,\"default_profile\":false,\"listed_count\":979,\"profile_use_background_image\":true,\"utc_offset\":-14400},\"id\":60529178394624000,\"coordinates\":null},{\"text\":\"Its me... Foto antiga http:\\/\\/twitpic.com\\/4n0qpi\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:15 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529177455104000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/twitpic.com\\\" rel=\\\"nofollow\\\"\\u003ETwitpic\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"f4f6f7\",\"default_profile_image\":false,\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_background_images\\/232562666\\/tumblr_ljikbuhg461qatcgjo1_500-crop.png\",\"created_at\":\"Tue Mar 08 22:32:19 +0000 2011\",\"description\":\"A saga s\\u00f3 terminar\\u00e1 quando o ultimo cora\\u00e7\\u00e3o Potteriano parar de bater.\",\"contributors_enabled\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":16,\"id_str\":\"262861570\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_text_color\":\"000000\",\"default_profile\":false,\"follow_request_sent\":null,\"profile_sidebar_fill_color\":\"\",\"profile_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_images\\/1315390447\\/emma_watson_rankin_shoot_6_normal.jpg\",\"is_translator\":false,\"profile_background_tile\":true,\"statuses_count\":3765,\"url\":null,\"screen_name\":\"HPFeijoezinhos\",\"following\":null,\"time_zone\":null,\"friends_count\":357,\"profile_link_color\":\"69043d\",\"protected\":false,\"listed_count\":105,\"verified\":false,\"profile_sidebar_border_color\":\"070e12\",\"followers_count\":459,\"location\":\"Dedosdemel\",\"name\":\"detodosossabores\\u03df\",\"id\":262861570,\"profile_use_background_image\":true,\"utc_offset\":null},\"id\":60529177455104000,\"coordinates\":null},{\"text\":\"Download Finance & Business Bestseller - THE BARON SON http:\\/\\/bit.ly\\/ecOBGa#extra money\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:14 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529176821760000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/www.strictly-software.com\\\" rel=\\\"nofollow\\\"\\u003EStrictly Tweetbot for Wordpress\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"510800\",\"default_profile_image\":false,\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_background_images\\/169145386\\/x03d93818792b81d1eeaaaba10443944.jpg\",\"created_at\":\"Sun Nov 07 03:01:41 +0000 2010\",\"description\":\"We are here to help promote the best information about high quality food growing systems and other environmental sustainable information.\",\"contributors_enabled\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":0,\"id_str\":\"212803224\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_text_color\":\"a16a23\",\"default_profile\":false,\"follow_request_sent\":null,\"profile_sidebar_fill_color\":\"2c1703\",\"profile_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_images\\/1161455423\\/Vegetable_market_normal.jpg\",\"is_translator\":false,\"profile_background_tile\":true,\"statuses_count\":1087,\"url\":\"http:\\/\\/www.your-gardening-central.com\",\"screen_name\":\"ag_ways\",\"following\":null,\"time_zone\":\"Pacific Time (US & Canada)\",\"friends_count\":854,\"profile_link_color\":\"e0912a\",\"protected\":false,\"listed_count\":6,\"verified\":false,\"profile_sidebar_border_color\":\"3d0702\",\"followers_count\":422,\"location\":\"\",\"name\":\"Ag Ways\",\"id\":212803224,\"profile_use_background_image\":true,\"utc_offset\":-28800},\"id\":60529176821760000,\"coordinates\":null},{\"text\":\"some people are just no good, but some people you wish you were still friends with.\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:14 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529176209408000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"C0DEED\",\"default_profile_image\":false,\"profile_background_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_background_images\\/234205935\\/britney_pretty.jpg\",\"created_at\":\"Sun May 16 00:36:27 +0000 2010\",\"description\":\"livin my life. just doin me.\",\"contributors_enabled\":false,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":5,\"id_str\":\"144330742\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_text_color\":\"333333\",\"default_profile\":false,\"follow_request_sent\":null,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_images\\/1315314810\\/Picture1339_normal.jpg\",\"is_translator\":false,\"profile_background_tile\":true,\"statuses_count\":1659,\"url\":null,\"screen_name\":\"ilygirl_jojo\",\"following\":null,\"time_zone\":\"Mountain Time (US & Canada)\",\"friends_count\":56,\"profile_link_color\":\"0084B4\",\"protected\":false,\"listed_count\":1,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":59,\"location\":\"My Dreams\",\"name\":\"Jodi Fouche\",\"id\":144330742,\"profile_use_background_image\":true,\"utc_offset\":-25200},\"id\":60529176209408000,\"coordinates\":null},{\"text\":\"I feel like I'm floating on air.. *bangag* sa mga tpx at tqx. Paano pa kaya sa Lunes?\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:14 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529174636544000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"C6E2EE\",\"profile_background_image_url\":\"http:\\/\\/a1.twimg.com\\/a\\/1302214109\\/images\\/themes\\/theme2\\/bg.gif\",\"created_at\":\"Thu May 21 17:37:47 +0000 2009\",\"description\":\"\",\"follow_request_sent\":null,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":59,\"id_str\":\"41633766\",\"contributors_enabled\":false,\"profile_text_color\":\"663B12\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"DAECF4\",\"profile_image_url\":\"http:\\/\\/a3.twimg.com\\/sticky\\/default_profile_images\\/default_profile_6_normal.png\",\"is_translator\":false,\"profile_background_tile\":false,\"friends_count\":59,\"listed_count\":0,\"url\":null,\"screen_name\":\"abcc4\",\"statuses_count\":875,\"following\":null,\"time_zone\":\"Hong Kong\",\"profile_link_color\":\"1F98C7\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"C6E2EE\",\"followers_count\":44,\"location\":\"Philippines\",\"name\":\"ABC Chua\",\"default_profile\":false,\"id\":41633766,\"default_profile_image\":true,\"profile_use_background_image\":true,\"utc_offset\":28800},\"id\":60529174636544000,\"coordinates\":null},{\"text\":\"RT @olgagarin: Anjing ganteng bgt smash apalg rangga, tapi dicky pucet\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:14 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529173785088000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/blackberry.com\\/twitter\\\" rel=\\\"nofollow\\\"\\u003E\\u0422witter for \\u0412lackBerry\\u00ae\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"C0DEED\",\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/a\\/1300727311\\/images\\/themes\\/theme1\\/bg.png\",\"created_at\":\"Thu Nov 04 09:29:49 +0000 2010\",\"description\":\"I Will Always Love You ***** single SM*SH - I Heart You n Senyum Semangat (No More Mellow Say No To Galau) Love @sm*sh n @morganoey\",\"follow_request_sent\":null,\"lang\":\"en\",\"notifications\":null,\"favourites_count\":122,\"id_str\":\"211805599\",\"contributors_enabled\":false,\"profile_text_color\":\"333333\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_images\\/1315717608\\/phpbcPtNk_normal\",\"is_translator\":false,\"profile_background_tile\":false,\"friends_count\":198,\"listed_count\":1,\"url\":null,\"screen_name\":\"HandiMayaWinata\",\"statuses_count\":6065,\"following\":null,\"time_zone\":\"Jakarta\",\"profile_link_color\":\"0084B4\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":318,\"location\":\"Indonesia\",\"name\":\"Maya Nuriska\",\"default_profile\":true,\"id\":211805599,\"default_profile_image\":false,\"profile_use_background_image\":true,\"utc_offset\":25200},\"id\":60529173785088000,\"coordinates\":null},{\"text\":\"volteei !  rs''\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:13 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529172212224000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/www.tweetdeck.com\\\" rel=\\\"nofollow\\\"\\u003ETweetDeck\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"follow_request_sent\":null,\"profile_background_color\":\"FF6699\",\"profile_background_image_url\":\"http:\\/\\/a0.twimg.com\\/profile_background_images\\/223666874\\/fundaooo.jpg\",\"created_at\":\"Wed Jan 19 16:18:14 +0000 2011\",\"description\":\"A morena do olho puxado ! Ela curte funk ela \\u00e9 de balada ela gosta da noite ela \\u00e9 de beber ! AmOo mto swigueira e pagodes ! Sou Felix pq tenho Deus em meu s2 !\",\"lang\":\"en\",\"notifications\":null,\"favourites_count\":2,\"id_str\":\"240300152\",\"is_translator\":false,\"profile_text_color\":\"706f6f\",\"default_profile\":false,\"listed_count\":0,\"profile_sidebar_fill_color\":\"\",\"profile_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_images\\/1270182297\\/avatarr_normal.png\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_background_tile\":true,\"friends_count\":157,\"url\":null,\"screen_name\":\"RT2418\",\"following\":null,\"time_zone\":null,\"profile_link_color\":\"f5055d\",\"protected\":false,\"default_profile_image\":false,\"statuses_count\":1559,\"verified\":false,\"profile_sidebar_border_color\":\"f5055d\",\"followers_count\":58,\"location\":\"Brasil\",\"name\":\"Raiane Turibio\",\"contributors_enabled\":false,\"id\":240300152,\"profile_use_background_image\":true,\"utc_offset\":null},\"id\":60529172212224000,\"coordinates\":null},{\"text\":\"hardest part about the fucking business , is minding your own .\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:13 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529171906048000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"follow_request_sent\":null,\"profile_background_color\":\"131516\",\"contributors_enabled\":false,\"profile_background_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_background_images\\/227196919\\/tumblr_lj0766q8Dx1qfy8fio1_400.jpg\",\"created_at\":\"Sat Jan 09 21:09:32 +0000 2010\",\"description\":\"fuck niggas , bitches too .\",\"show_all_inline_media\":false,\"lang\":\"en\",\"geo_enabled\":false,\"notifications\":null,\"favourites_count\":7,\"id_str\":\"103380312\",\"is_translator\":false,\"friends_count\":41,\"profile_text_color\":\"333333\",\"listed_count\":0,\"profile_sidebar_fill_color\":\"efefef\",\"profile_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_images\\/1310774471\\/IMG000045_normal.jpg\",\"statuses_count\":2183,\"profile_background_tile\":true,\"url\":\"http:\\/\\/sincerly-neekadaley.tumblr.com\",\"screen_name\":\"loveneekaneeks_\",\"default_profile\":false,\"following\":null,\"time_zone\":\"Quito\",\"profile_link_color\":\"009999\",\"protected\":false,\"default_profile_image\":false,\"verified\":false,\"profile_sidebar_border_color\":\"eeeeee\",\"followers_count\":54,\"location\":\"Somewhere Outter Space .\",\"name\":\"Music Fiend\",\"id\":103380312,\"profile_use_background_image\":true,\"utc_offset\":-18000},\"id\":60529171906048000,\"coordinates\":null},{\"text\":\"WUUUUUUU! \\u00b2\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:13 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529171490816000\",\"place\":null,\"favorited\":false,\"source\":\"web\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"profile_background_color\":\"8B542B\",\"follow_request_sent\":null,\"profile_background_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_background_images\\/234790182\\/misfondos.net-108.jpg\",\"created_at\":\"Sat Oct 02 17:06:12 +0000 2010\",\"description\":\"@TomCruise 19\\/01\\/2011 ' Prefiero que la gente me odie por ser quien soy a que me ame por lo que no soy. :) :)\\r\\nSigan a @BriGitteBohorQ es muy Hermosa :) :)\",\"is_translator\":false,\"contributors_enabled\":false,\"lang\":\"es\",\"notifications\":null,\"favourites_count\":239,\"id_str\":\"197855410\",\"show_all_inline_media\":true,\"statuses_count\":9600,\"profile_text_color\":\"333333\",\"geo_enabled\":false,\"friends_count\":532,\"profile_sidebar_fill_color\":\"EADEAA\",\"profile_image_url\":\"http:\\/\\/a3.twimg.com\\/profile_images\\/1316416480\\/snapshot__3__normal.jpg\",\"listed_count\":14,\"profile_background_tile\":true,\"url\":\"http:\\/\\/twitpic.com\\/photos\\/DavidIalvarez\",\"screen_name\":\"DavidIalvarez\",\"following\":null,\"time_zone\":\"Bogota\",\"profile_link_color\":\"9D582E\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"D9B17E\",\"followers_count\":429,\"location\":\"Solo en mi MUNDO!\",\"name\":\"David Alvarez '\",\"default_profile_image\":false,\"id\":197855410,\"default_profile\":false,\"profile_use_background_image\":true,\"utc_offset\":-18000},\"id\":60529171490816000,\"coordinates\":null},{\"text\":\"Hoe .! Lls #neisha\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:13 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529170639360000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/twitter.com\\/\\\" rel=\\\"nofollow\\\"\\u003ETwitter for iPhone\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"follow_request_sent\":null,\"profile_background_color\":\"022330\",\"profile_background_image_url\":\"http:\\/\\/a2.twimg.com\\/profile_background_images\\/220104691\\/jordan_spike_ad.jpg\",\"created_at\":\"Fri Jul 23 00:04:56 +0000 2010\",\"description\":\"Naim Muhammad.Ball is Life. Fam Friends God. North point high school takin over the DMV for boys basketball. #44\",\"lang\":\"en\",\"notifications\":null,\"favourites_count\":18,\"id_str\":\"169706771\",\"is_translator\":false,\"profile_text_color\":\"25e82c\",\"listed_count\":0,\"profile_sidebar_fill_color\":\"f70f50\",\"profile_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_images\\/1306943949\\/207774_199722180062626_100000745377565_568464_5895318_n_normal.jpg\",\"show_all_inline_media\":false,\"geo_enabled\":false,\"profile_background_tile\":true,\"friends_count\":368,\"default_profile\":false,\"url\":null,\"screen_name\":\"TheProphetNaim_\",\"following\":null,\"time_zone\":\"Quito\",\"profile_link_color\":\"0084B4\",\"protected\":false,\"default_profile_image\":false,\"statuses_count\":10366,\"verified\":false,\"profile_sidebar_border_color\":\"efa9f5\",\"followers_count\":512,\"location\":\"Maryland\",\"name\":\"Naim Muhammad\",\"contributors_enabled\":false,\"id\":169706771,\"profile_use_background_image\":true,\"utc_offset\":-18000},\"id\":60529170639360000,\"coordinates\":null},{\"text\":\"\\u2606\\u3042\\u3059\\u307f\\u306e\\u3054\\u3061\\u305d\\u3046\\u3055\\u307e\\u3067\\u3057\\u305f\\u3000\\u2606\\u672c\\u5c4b\\u3078\\u306e\\u9053\\u306e\\u308a\\u95a2\\u9023\\u30aa\\u30b9\\u30b9\\u30e1\\u60c5\\u5831\\u3000\\u2606http:\\/\\/mahmapanda2.blog11.fc2.com\\/blog-entry-898.html\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:13 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529170115072000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/blog.fc2.com\\/\\\" rel=\\\"nofollow\\\"\\u003EFC2 Blog Notify\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"friends_count\":44,\"profile_background_color\":\"B2DFDA\",\"profile_background_image_url\":\"http:\\/\\/a1.twimg.com\\/a\\/1302214109\\/images\\/themes\\/theme13\\/bg.gif\",\"created_at\":\"Sat Feb 06 23:40:06 +0000 2010\",\"description\":\"\\u3042\\u3059\\u307f\\u3067\\u3059\",\"lang\":\"ja\",\"notifications\":false,\"favourites_count\":0,\"id_str\":\"112012009\",\"default_profile_image\":false,\"profile_text_color\":\"333333\",\"show_all_inline_media\":false,\"contributors_enabled\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"ffffff\",\"profile_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_images\\/1192437872\\/TDL-17_normal.jpg\",\"profile_background_tile\":false,\"follow_request_sent\":false,\"url\":\"http:\\/\\/mahmapanda.blog83.fc2.com\\/\",\"screen_name\":\"A_SUMI\",\"statuses_count\":2310,\"following\":false,\"time_zone\":\"Osaka\",\"profile_link_color\":\"93A644\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"eeeeee\",\"followers_count\":73,\"location\":\"\",\"name\":\"A_SUMI\",\"is_translator\":false,\"default_profile\":false,\"id\":112012009,\"listed_count\":3,\"profile_use_background_image\":true,\"utc_offset\":32400},\"id\":60529170115072000,\"coordinates\":null},{\"text\":\"mumet ak ka RT @renaningtyass: Biar kamu mikir.  RT @diandeesuuyeeyy: hush2..kq ngene trus yo RT @renaningtyass: Njuk aq, ... http:\\/\\/tmi.me\",\"geo\":null,\"in_reply_to_status_id\":null,\"truncated\":false,\"created_at\":\"Wed Apr 20 02:24:13 +0000 2011\",\"retweet_count\":0,\"in_reply_to_user_id\":null,\"id_str\":\"60529168957440000\",\"place\":null,\"favorited\":false,\"source\":\"\\u003Ca href=\\\"http:\\/\\/m.tuitwit.com\\\" rel=\\\"nofollow\\\"\\u003ETuitwit\\u003C\\/a\\u003E\",\"in_reply_to_screen_name\":null,\"in_reply_to_status_id_str\":null,\"contributors\":null,\"retweeted\":false,\"in_reply_to_user_id_str\":null,\"user\":{\"friends_count\":56,\"profile_background_color\":\"C0DEED\",\"default_profile\":true,\"profile_background_image_url\":\"http:\\/\\/a3.twimg.com\\/a\\/1301438647\\/images\\/themes\\/theme1\\/bg.png\",\"created_at\":\"Sun Oct 17 10:26:39 +0000 2010\",\"description\":\"la..la..laa...mbuh..la...\",\"lang\":\"en\",\"notifications\":false,\"favourites_count\":1,\"id_str\":\"203863446\",\"default_profile_image\":false,\"profile_text_color\":\"333333\",\"show_all_inline_media\":false,\"contributors_enabled\":false,\"geo_enabled\":false,\"profile_sidebar_fill_color\":\"DDEEF6\",\"profile_image_url\":\"http:\\/\\/a1.twimg.com\\/profile_images\\/1307843270\\/phpU5N2qi_normal\",\"profile_background_tile\":false,\"follow_request_sent\":false,\"url\":null,\"screen_name\":\"diandeesuuyeeyy\",\"statuses_count\":3033,\"following\":false,\"time_zone\":\"Pacific Time (US & Canada)\",\"profile_link_color\":\"0084B4\",\"protected\":false,\"verified\":false,\"profile_sidebar_border_color\":\"C0DEED\",\"followers_count\":49,\"location\":\"\",\"name\":\"dian puspowati\",\"is_translator\":false,\"id\":203863446,\"listed_count\":2,\"profile_use_background_image\":true,\"utc_offset\":-28800},\"id\":60529168957440000,\"coordinates\":null}]";
+    private static String resourceToString(String path) throws Exception {
+        InputStream in = ParseBenchmark.class.getResourceAsStream(path);
+        if (in == null) {
+            throw new IllegalArgumentException("No such file: " + path);
+        }
 
-    /**
-     * This benchmarking parser attempts to do what a real parser would do:
-     * look at real properties by name and read their values as their proper
-     * type. Unlike a real parser, this discards the values rather than
-     * retaining them.
-     */
+        Reader reader = new InputStreamReader(in, "UTF-8");
+        char[] buffer = new char[8192];
+        StringWriter writer = new StringWriter();
+        int count;
+        while ((count = reader.read(buffer)) != -1) {
+            writer.write(buffer, 0, count);
+        }
+        reader.close();
+        return writer.toString();
+    }
+
+    // TODO: Use Java 7 String switch in the inner parsers
+
     private static class TweetsJsonParser {
-        private void parse(Reader reader) throws IOException {
+        public void parse(Reader reader) throws IOException {
             JsonReader jsonReader = new JsonReader(reader);
             jsonReader.beginArray();
             while (jsonReader.hasNext()) {
-                parseTweet(jsonReader);
+                parseStatus(jsonReader);
             }
             jsonReader.endArray();
         }
 
-        private void parseTweet(JsonReader jsonReader) throws IOException {
+        private void parseStatus(JsonReader jsonReader) throws IOException {
             jsonReader.beginObject();
             while (jsonReader.hasNext()) {
                 String name = jsonReader.nextName();
@@ -71,13 +118,11 @@ public final class ParseBenchmark extends SimpleBenchmark {
                     continue;
                 }
 
-                // TODO: Use Java 7 String switch here
                 if (name.equals("text")
                         || name.equals("created_at")
                         || name.equals("id_str")
-                        || name.equals("source")) {
-                    jsonReader.nextString();
-                } else if (name.equals("geo")
+                        || name.equals("source")
+                        || name.equals("geo")
                         || name.equals("in_reply_to_status_id")
                         || name.equals("in_reply_to_user_id")
                         || name.equals("place")
@@ -85,35 +130,23 @@ public final class ParseBenchmark extends SimpleBenchmark {
                         || name.equals("in_reply_to_status_id_str")
                         || name.equals("contributors")
                         || name.equals("in_reply_to_user_id_str")
-                        || name.equals("coordinates")
-                        || name.equals("user")) {
+                        || name.equals("coordinates")) {
+                    jsonReader.nextString();
+                } else if (name.equals("user")) {
                     parseUser(jsonReader);
                 } else if (name.equals("favorited")
                         || name.equals("truncated")
                         || name.equals("retweeted")) {
                     jsonReader.nextBoolean();
                 } else if (name.equals("retweet_count")) {
-                    jsonReader.nextInt();
+                    jsonReader.nextString(); // like '2' or "100+"
                 } else if (name.equals("id")) {
                     jsonReader.nextLong();
+                } else if (name.equals("retweeted_status")) {
+                    parseStatus(jsonReader);
                 } else {
-                    throw new RuntimeException("Unexpected name: " + name);
+                    throw new IllegalArgumentException("Unexpected name: " + name);
                 }
-            }
-            jsonReader.endObject();
-        }
-
-        private void parseValue(String name, JsonReader jsonReader) throws IOException {
-            if (jsonReader.peek() == JsonToken.NULL) {
-                jsonReader.nextNull();
-                return;
-            }
-            jsonReader.beginObject();
-            while (jsonReader.hasNext()) {
-                String k = jsonReader.nextName();
-                JsonToken type = jsonReader.peek();
-                jsonReader.skipValue();
-                throw new IllegalArgumentException("unparsed value " + name + " " + k + " " + type);
             }
             jsonReader.endObject();
         }
@@ -131,7 +164,6 @@ public final class ParseBenchmark extends SimpleBenchmark {
                     continue;
                 }
 
-                // TODO: Use Java 7 String switch here
                 if (name.equals("friends_count")
                         || name.equals("favourites_count")
                         || name.equals("statuses_count")
@@ -156,7 +188,9 @@ public final class ParseBenchmark extends SimpleBenchmark {
                         || name.equals("profile_link_color")
                         || name.equals("profile_sidebar_border_color")
                         || name.equals("location")
-                        || name.equals("name")) {
+                        || name.equals("name")
+                        || name.equals("display_url")
+                        || name.equals("expanded_url")) {
                     jsonReader.nextString();
                 } else if (name.equals("notifications")
                         || name.equals("default_profile_image")
@@ -174,10 +208,129 @@ public final class ParseBenchmark extends SimpleBenchmark {
                         || name.equals("profile_use_background_image")) {
                     jsonReader.nextBoolean();
                 } else {
-                    throw new RuntimeException("Unexpected name: " + name);
+                    throw new IllegalArgumentException("Unexpected name: " + name);
                 }
             }
             jsonReader.endObject();
+        }
+
+        private void parseValue(String name, JsonReader jsonReader) throws IOException {
+            if (jsonReader.peek() == JsonToken.NULL) {
+                jsonReader.nextNull();
+                return;
+            }
+            jsonReader.beginObject();
+            while (jsonReader.hasNext()) {
+                String k = jsonReader.nextName();
+                JsonToken type = jsonReader.peek();
+                jsonReader.skipValue();
+                throw new IllegalArgumentException("unparsed value " + name + " " + k + " " + type);
+            }
+            jsonReader.endObject();
+        }
+    }
+
+    private static class TweetsXmlParser {
+        public void parse(Reader reader) throws Exception {
+            XmlPullParser xmlParser = android.util.Xml.newPullParser();
+            xmlParser.setInput(reader);
+            xmlParser.nextTag();
+            while (xmlParser.nextTag() == XmlPullParser.START_TAG) {
+                if ("status".equals(xmlParser.getName())) {
+                    parseStatus(xmlParser);
+                } else {
+                    throw new IllegalArgumentException("Unexpected name " + xmlParser.getName());
+                }
+            }
+            reader.close();
+        }
+
+        private void parseStatus(XmlPullParser xmlParser) throws Exception {
+            while (xmlParser.nextTag() == XmlPullParser.START_TAG) {
+                String name = xmlParser.getName();
+                if ("created_at".equals(name)
+                        || "id".equals(name)
+                        || "text".equals(name)
+                        || "source".equals(name)
+                        || "truncated".equals(name)
+                        || "favorited".equals(name)
+                        || "in_reply_to_status_id".equals(name)
+                        || "in_reply_to_user_id".equals(name)
+                        || "in_reply_to_screen_name".equals(name)
+                        || "retweet_count".equals(name)
+                        || "retweeted".equals(name)
+                        || "geo".equals(name)
+                        || "coordinates".equals(name)
+                        || "place".equals(name)
+                        || "contributors".equals(name)) {
+                    parseString(name, xmlParser);
+                } else if ("retweeted_status".equals(name)) {
+                    parseStatus(xmlParser);
+                } else if ("user".equals(name)) {
+                    parseUser(xmlParser);
+                } else {
+                    throw new IllegalArgumentException("Unexpected name " + name);
+                }
+            }
+        }
+
+        private void parseUser(XmlPullParser xmlParser) throws Exception {
+            while (xmlParser.nextTag() == XmlPullParser.START_TAG) {
+                String name = xmlParser.getName();
+                if ("id".equals(name)
+                        || "name".equals(name)
+                        || "screen_name".equals(name)
+                        || "location".equals(name)
+                        || "description".equals(name)
+                        || "profile_image_url".equals(name)
+                        || "url".equals(name)
+                        || "protected".equals(name)
+                        || "followers_count".equals(name)
+                        || "profile_background_color".equals(name)
+                        || "profile_text_color".equals(name)
+                        || "profile_link_color".equals(name)
+                        || "profile_sidebar_fill_color".equals(name)
+                        || "profile_sidebar_border_color".equals(name)
+                        || "friends_count".equals(name)
+                        || "created_at".equals(name)
+                        || "favourites_count".equals(name)
+                        || "utc_offset".equals(name)
+                        || "time_zone".equals(name)
+                        || "profile_background_image_url".equals(name)
+                        || "profile_background_tile".equals(name)
+                        || "profile_use_background_image".equals(name)
+                        || "notifications".equals(name)
+                        || "geo_enabled".equals(name)
+                        || "verified".equals(name)
+                        || "following".equals(name)
+                        || "statuses_count".equals(name)
+                        || "lang".equals(name)
+                        || "contributors_enabled".equals(name)
+                        || "follow_request_sent".equals(name)
+                        || "listed_count".equals(name)
+                        || "show_all_inline_media".equals(name)
+                        || "default_profile".equals(name)
+                        || "default_profile_image".equals(name)
+                        || "expanded_url".equals(name)
+                        || "display_url".equals(name)
+                        || "is_translator".equals(name)
+                        ) {
+                    parseString(name, xmlParser);
+                } else {
+                    throw new IllegalArgumentException("Unexpected name " + name);
+                }
+            }
+        }
+
+        private void parseString(String name, XmlPullParser xmlParser) throws Exception {
+            int next = xmlParser.next();
+            if (next == XmlPullParser.TEXT) {
+                xmlParser.getText();
+                next = xmlParser.next();
+            }
+            if (next != XmlPullParser.END_TAG) {
+                throw new IllegalArgumentException("Unexpected token " + name + " " + next);
+            }
         }
     }
 }
