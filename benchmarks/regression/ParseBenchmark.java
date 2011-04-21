@@ -27,8 +27,10 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.StringWriter;
 import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.SAXParserFactory;
 import org.json.JSONArray;
 import org.xml.sax.InputSource;
+import org.xml.sax.helpers.DefaultHandler;
 import org.xmlpull.v1.XmlPullParser;
 
 /**
@@ -73,6 +75,13 @@ public final class ParseBenchmark extends SimpleBenchmark {
         for (int i = 0; i < reps; i++) {
             DocumentBuilderFactory.newInstance().newDocumentBuilder()
                     .parse(new InputSource(new StringReader(xml)));
+        }
+    }
+
+    public void timeParseXmlSax(int reps) throws Exception {
+        for (int i = 0; i < reps; i++) {
+            SAXParserFactory.newInstance().newSAXParser().parse(
+                    new InputSource(new StringReader(xml)), new DefaultHandler());
         }
     }
 
