@@ -17,7 +17,7 @@
 package benchmarks.regression;
 
 import android.util.JsonReader;
-import android.util.JsonToken;
+import com.google.caliper.Param;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import java.io.IOException;
@@ -29,6 +29,7 @@ import java.io.StringWriter;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParserFactory;
 import org.json.JSONArray;
+import org.json.JSONObject;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xmlpull.v1.XmlPullParser;
@@ -45,43 +46,63 @@ import org.xmlpull.v1.XmlPullParser;
  * benchmark discards the values as they're read.
  */
 public final class ParseBenchmark extends SimpleBenchmark {
-    private String json;
-    private String xml;
+
+    @Param Document document;
+    @Param Api api;
+
+    private enum Document {
+        TWEETS,
+        READER_SHORT,
+        READER_LONG
+    }
+
+    private enum Api {
+        JSON_READER("json") {
+            @Override Parser newParser() {
+                return new GeneralJsonReaderParser();
+            }
+        },
+        ORG_JSON("json") {
+            @Override Parser newParser() {
+                return new OrgJsonParser();
+            }
+        },
+        XML_PULL("xml") {
+            @Override Parser newParser() {
+                return new GeneralXmlPullParser();
+            }
+        },
+        XML_DOM("xml") {
+            @Override Parser newParser() {
+                return new XmlDomParser();
+            }
+        },
+        XML_SAX("xml") {
+            @Override Parser newParser() {
+                return new XmlSaxParser();
+            }
+        };
+
+        final String extension;
+
+        private Api(String extension) {
+            this.extension = extension;
+        }
+
+        abstract Parser newParser();
+    }
+
+    private String text;
+    private Parser parser;
 
     @Override protected void setUp() throws Exception {
-        json = resourceToString("/tweets.json");
-        xml = resourceToString("/tweets.xml");
+        text = resourceToString("/" + document.name() + "." + api.extension);
+        parser = api.newParser();
     }
 
-    public void timeParseStreamingJson(int reps) throws Exception {
+    public void timeParse(int reps) throws Exception {
         for (int i = 0; i < reps; i++) {
-            new TweetsJsonParser().parse(new StringReader(json));
-        }
-    }
-
-    public void timeParseJsonObject(int reps) throws Exception {
-        for (int i = 0; i < reps; i++) {
-            new JSONArray(json);
-        }
-    }
-
-    public void timeParseStreamingXml(int reps) throws Exception {
-        for (int i = 0; i < reps; i++) {
-            new TweetsXmlParser().parse(new StringReader(xml));
-        }
-    }
-
-    public void timeParseXmlObject(int reps) throws Exception {
-        for (int i = 0; i < reps; i++) {
-            DocumentBuilderFactory.newInstance().newDocumentBuilder()
-                    .parse(new InputSource(new StringReader(xml)));
-        }
-    }
-
-    public void timeParseXmlSax(int reps) throws Exception {
-        for (int i = 0; i < reps; i++) {
-            SAXParserFactory.newInstance().newSAXParser().parse(
-                    new InputSource(new StringReader(xml)), new DefaultHandler());
+            parser.parse(text);
         }
     }
 
@@ -108,238 +129,94 @@ public final class ParseBenchmark extends SimpleBenchmark {
 
     // TODO: Use Java 7 String switch in the inner parsers
 
-    private static class TweetsJsonParser {
-        public void parse(Reader reader) throws IOException {
-            JsonReader jsonReader = new JsonReader(reader);
-            jsonReader.beginArray();
-            while (jsonReader.hasNext()) {
-                parseStatus(jsonReader);
-            }
-            jsonReader.endArray();
+    interface Parser {
+        void parse(String data) throws Exception;
+    }
+
+    private static class GeneralJsonReaderParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            JsonReader jsonReader = new JsonReader(new StringReader(data));
+            readToken(jsonReader);
         }
 
-        private void parseStatus(JsonReader jsonReader) throws IOException {
-            jsonReader.beginObject();
-            while (jsonReader.hasNext()) {
-                String name = jsonReader.nextName();
-                if (jsonReader.peek() == JsonToken.NULL) {
-                    jsonReader.nextNull();
-                    continue;
-                }
-
-                if (name.equals("text")
-                        || name.equals("created_at")
-                        || name.equals("id_str")
-                        || name.equals("source")
-                        || name.equals("geo")
-                        || name.equals("in_reply_to_status_id")
-                        || name.equals("in_reply_to_user_id")
-                        || name.equals("place")
-                        || name.equals("in_reply_to_screen_name")
-                        || name.equals("in_reply_to_status_id_str")
-                        || name.equals("contributors")
-                        || name.equals("in_reply_to_user_id_str")
-                        || name.equals("coordinates")) {
-                    jsonReader.nextString();
-                } else if (name.equals("user")) {
-                    parseUser(jsonReader);
-                } else if (name.equals("favorited")
-                        || name.equals("truncated")
-                        || name.equals("retweeted")) {
-                    jsonReader.nextBoolean();
-                } else if (name.equals("retweet_count")) {
-                    jsonReader.nextString(); // like '2' or "100+"
-                } else if (name.equals("id")) {
-                    jsonReader.nextLong();
-                } else if (name.equals("retweeted_status")) {
-                    parseStatus(jsonReader);
-                } else {
-                    throw new IllegalArgumentException("Unexpected name: " + name);
-                }
+        public void readObject(JsonReader reader) throws IOException {
+            reader.beginObject();
+            while (reader.hasNext()) {
+                reader.nextName();
+                readToken(reader);
             }
-            jsonReader.endObject();
+            reader.endObject();
         }
 
-        private void parseUser(JsonReader jsonReader) throws IOException {
-            if (jsonReader.peek() == JsonToken.NULL) {
-                jsonReader.nextNull();
-                return;
+        public void readArray(JsonReader reader) throws IOException {
+            reader.beginArray();
+            while (reader.hasNext()) {
+                readToken(reader);
             }
-            jsonReader.beginObject();
-            while (jsonReader.hasNext()) {
-                String name = jsonReader.nextName();
-                if (jsonReader.peek() == JsonToken.NULL) {
-                    jsonReader.nextNull();
-                    continue;
-                }
-
-                if (name.equals("friends_count")
-                        || name.equals("favourites_count")
-                        || name.equals("statuses_count")
-                        || name.equals("followers_count")
-                        || name.equals("id")
-                        || name.equals("listed_count")
-                        || name.equals("utc_offset")) {
-                    jsonReader.nextInt();
-                } else if (name.equals("profile_background_color")
-                        || name.equals("profile_background_image_url")
-                        || name.equals("created_at")
-                        || name.equals("description")
-                        || name.equals("lang")
-                        || name.equals("id_str")
-                        || name.equals("id_str")
-                        || name.equals("profile_text_color")
-                        || name.equals("profile_sidebar_fill_color")
-                        || name.equals("profile_image_url")
-                        || name.equals("url")
-                        || name.equals("screen_name")
-                        || name.equals("time_zone")
-                        || name.equals("profile_link_color")
-                        || name.equals("profile_sidebar_border_color")
-                        || name.equals("location")
-                        || name.equals("name")
-                        || name.equals("display_url")
-                        || name.equals("expanded_url")) {
-                    jsonReader.nextString();
-                } else if (name.equals("notifications")
-                        || name.equals("default_profile_image")
-                        || name.equals("default_profile_image")
-                        || name.equals("show_all_inline_media")
-                        || name.equals("contributors_enabled")
-                        || name.equals("geo_enabled")
-                        || name.equals("profile_background_tile")
-                        || name.equals("follow_request_sent")
-                        || name.equals("following")
-                        || name.equals("protected")
-                        || name.equals("verified")
-                        || name.equals("is_translator")
-                        || name.equals("default_profile")
-                        || name.equals("profile_use_background_image")) {
-                    jsonReader.nextBoolean();
-                } else {
-                    throw new IllegalArgumentException("Unexpected name: " + name);
-                }
-            }
-            jsonReader.endObject();
+            reader.endArray();
         }
 
-        private void parseValue(String name, JsonReader jsonReader) throws IOException {
-            if (jsonReader.peek() == JsonToken.NULL) {
-                jsonReader.nextNull();
-                return;
+        private void readToken(JsonReader reader) throws IOException {
+            switch (reader.peek()) {
+            case BEGIN_ARRAY:
+                readArray(reader);
+                break;
+            case BEGIN_OBJECT:
+                readObject(reader);
+                break;
+            case BOOLEAN:
+                reader.nextBoolean();
+                break;
+            case NULL:
+                reader.nextNull();
+                break;
+            case NUMBER:
+                reader.nextLong();
+                break;
+            case STRING:
+                reader.nextString();
+                break;
+            default:
+                throw new IllegalArgumentException("Unexpected token" + reader.peek());
             }
-            jsonReader.beginObject();
-            while (jsonReader.hasNext()) {
-                String k = jsonReader.nextName();
-                JsonToken type = jsonReader.peek();
-                jsonReader.skipValue();
-                throw new IllegalArgumentException("unparsed value " + name + " " + k + " " + type);
-            }
-            jsonReader.endObject();
         }
     }
 
-    private static class TweetsXmlParser {
-        public void parse(Reader reader) throws Exception {
+    private static class OrgJsonParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            if (data.startsWith("[")) {
+                new JSONArray(data);
+            } else if (data.startsWith("{")) {
+                new JSONObject(data);
+            } else {
+                throw new IllegalArgumentException();
+            }
+        }
+    }
+
+    private static class GeneralXmlPullParser implements Parser {
+        @Override public void parse(String data) throws Exception {
             XmlPullParser xmlParser = android.util.Xml.newPullParser();
-            xmlParser.setInput(reader);
+            xmlParser.setInput(new StringReader(data));
             xmlParser.nextTag();
-            while (xmlParser.nextTag() == XmlPullParser.START_TAG) {
-                if ("status".equals(xmlParser.getName())) {
-                    parseStatus(xmlParser);
-                } else {
-                    throw new IllegalArgumentException("Unexpected name " + xmlParser.getName());
-                }
-            }
-            reader.close();
-        }
-
-        private void parseStatus(XmlPullParser xmlParser) throws Exception {
-            while (xmlParser.nextTag() == XmlPullParser.START_TAG) {
-                String name = xmlParser.getName();
-                if ("created_at".equals(name)
-                        || "id".equals(name)
-                        || "text".equals(name)
-                        || "source".equals(name)
-                        || "truncated".equals(name)
-                        || "favorited".equals(name)
-                        || "in_reply_to_status_id".equals(name)
-                        || "in_reply_to_user_id".equals(name)
-                        || "in_reply_to_screen_name".equals(name)
-                        || "retweet_count".equals(name)
-                        || "retweeted".equals(name)
-                        || "geo".equals(name)
-                        || "coordinates".equals(name)
-                        || "place".equals(name)
-                        || "contributors".equals(name)) {
-                    parseString(name, xmlParser);
-                } else if ("retweeted_status".equals(name)) {
-                    parseStatus(xmlParser);
-                } else if ("user".equals(name)) {
-                    parseUser(xmlParser);
-                } else {
-                    throw new IllegalArgumentException("Unexpected name " + name);
-                }
-            }
-        }
-
-        private void parseUser(XmlPullParser xmlParser) throws Exception {
-            while (xmlParser.nextTag() == XmlPullParser.START_TAG) {
-                String name = xmlParser.getName();
-                if ("id".equals(name)
-                        || "name".equals(name)
-                        || "screen_name".equals(name)
-                        || "location".equals(name)
-                        || "description".equals(name)
-                        || "profile_image_url".equals(name)
-                        || "url".equals(name)
-                        || "protected".equals(name)
-                        || "followers_count".equals(name)
-                        || "profile_background_color".equals(name)
-                        || "profile_text_color".equals(name)
-                        || "profile_link_color".equals(name)
-                        || "profile_sidebar_fill_color".equals(name)
-                        || "profile_sidebar_border_color".equals(name)
-                        || "friends_count".equals(name)
-                        || "created_at".equals(name)
-                        || "favourites_count".equals(name)
-                        || "utc_offset".equals(name)
-                        || "time_zone".equals(name)
-                        || "profile_background_image_url".equals(name)
-                        || "profile_background_tile".equals(name)
-                        || "profile_use_background_image".equals(name)
-                        || "notifications".equals(name)
-                        || "geo_enabled".equals(name)
-                        || "verified".equals(name)
-                        || "following".equals(name)
-                        || "statuses_count".equals(name)
-                        || "lang".equals(name)
-                        || "contributors_enabled".equals(name)
-                        || "follow_request_sent".equals(name)
-                        || "listed_count".equals(name)
-                        || "show_all_inline_media".equals(name)
-                        || "default_profile".equals(name)
-                        || "default_profile_image".equals(name)
-                        || "expanded_url".equals(name)
-                        || "display_url".equals(name)
-                        || "is_translator".equals(name)
-                        ) {
-                    parseString(name, xmlParser);
-                } else {
-                    throw new IllegalArgumentException("Unexpected name " + name);
-                }
-            }
-        }
-
-        private void parseString(String name, XmlPullParser xmlParser) throws Exception {
-            int next = xmlParser.next();
-            if (next == XmlPullParser.TEXT) {
+            while (xmlParser.next() != XmlPullParser.END_DOCUMENT) {
+                xmlParser.getName();
                 xmlParser.getText();
-                next = xmlParser.next();
             }
-            if (next != XmlPullParser.END_TAG) {
-                throw new IllegalArgumentException("Unexpected token " + name + " " + next);
-            }
+        }
+    }
+
+    private static class XmlDomParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                    .parse(new InputSource(new StringReader(data)));
+        }
+    }
+
+    private static class XmlSaxParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            SAXParserFactory.newInstance().newSAXParser().parse(
+                    new InputSource(new StringReader(data)), new DefaultHandler());
         }
     }
 }
