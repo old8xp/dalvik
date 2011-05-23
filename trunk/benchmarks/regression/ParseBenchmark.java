@@ -28,6 +28,8 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParserFactory;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xmlpull.v1.XmlPullParser;
@@ -38,10 +40,6 @@ import org.xmlpull.v1.XmlPullParser;
  * <p>This benchmark requires that ParseBenchmarkData.zip is on the classpath.
  * That file contains Twitter feed data, which is representative of what
  * applications will be parsing.
- *
- * <p>The parsers attempt to do what a real parser would do: match properties by
- * name and read their values as their proper type. Unlike a real parser, this
- * benchmark discards the values as they're read.
  */
 public final class ParseBenchmark extends SimpleBenchmark {
 
@@ -130,8 +128,6 @@ public final class ParseBenchmark extends SimpleBenchmark {
         return writer.toString();
     }
 
-    // TODO: Use Java 7 String switch in the inner parsers
-
     interface Parser {
         void parse(String data) throws Exception;
     }
@@ -194,11 +190,25 @@ public final class ParseBenchmark extends SimpleBenchmark {
 
     private static class OrgJsonParser implements Parser {
         @Override public void parse(String data) throws Exception {
+          if (data.startsWith("[")) {
+              new JSONArray(data);
+          } else if (data.startsWith("{")) {
+              new JSONObject(data);
+          } else {
+              throw new IllegalArgumentException();
+          }
         }
     }
 
     private static class GeneralXmlPullParser implements Parser {
         @Override public void parse(String data) throws Exception {
+          XmlPullParser xmlParser = android.util.Xml.newPullParser();
+          xmlParser.setInput(new StringReader(data));
+          xmlParser.nextTag();
+          while (xmlParser.next() != XmlPullParser.END_DOCUMENT) {
+              xmlParser.getName();
+              xmlParser.getText();
+          }
         }
     }
 
