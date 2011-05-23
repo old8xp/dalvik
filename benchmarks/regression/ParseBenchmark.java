@@ -16,10 +16,10 @@
 
 package benchmarks.regression;
 
-import android.util.JsonReader;
 import com.google.caliper.Param;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,8 +28,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParserFactory;
-import org.json.JSONArray;
-import org.json.JSONObject;
 import org.xml.sax.InputSource;
 import org.xml.sax.helpers.DefaultHandler;
 import org.xmlpull.v1.XmlPullParser;
@@ -57,9 +55,14 @@ public final class ParseBenchmark extends SimpleBenchmark {
     }
 
     private enum Api {
-        JSON_READER("json") {
+        GSON_STREAM("json") {
             @Override Parser newParser() {
-                return new GeneralJsonReaderParser();
+                return new GeneralGsonStreamingParser();
+            }
+        },
+        GSON_DOM("json") {
+            @Override Parser newParser() {
+                return new GsonDomParser();
             }
         },
         ORG_JSON("json") {
@@ -133,13 +136,14 @@ public final class ParseBenchmark extends SimpleBenchmark {
         void parse(String data) throws Exception;
     }
 
-    private static class GeneralJsonReaderParser implements Parser {
+    private static class GeneralGsonStreamingParser implements Parser {
         @Override public void parse(String data) throws Exception {
-            JsonReader jsonReader = new JsonReader(new StringReader(data));
+            com.google.gson.stream.JsonReader jsonReader
+                    = new com.google.gson.stream.JsonReader(new StringReader(data));
             readToken(jsonReader);
         }
 
-        public void readObject(JsonReader reader) throws IOException {
+        public void readObject(com.google.gson.stream.JsonReader reader) throws IOException {
             reader.beginObject();
             while (reader.hasNext()) {
                 reader.nextName();
@@ -148,7 +152,7 @@ public final class ParseBenchmark extends SimpleBenchmark {
             reader.endObject();
         }
 
-        public void readArray(JsonReader reader) throws IOException {
+        public void readArray(com.google.gson.stream.JsonReader reader) throws IOException {
             reader.beginArray();
             while (reader.hasNext()) {
                 readToken(reader);
@@ -156,7 +160,7 @@ public final class ParseBenchmark extends SimpleBenchmark {
             reader.endArray();
         }
 
-        private void readToken(JsonReader reader) throws IOException {
+        private void readToken(com.google.gson.stream.JsonReader reader) throws IOException {
             switch (reader.peek()) {
             case BEGIN_ARRAY:
                 readArray(reader);
@@ -182,27 +186,19 @@ public final class ParseBenchmark extends SimpleBenchmark {
         }
     }
 
+    private static class GsonDomParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            new JsonParser().parse(data);
+        }
+    }
+
     private static class OrgJsonParser implements Parser {
         @Override public void parse(String data) throws Exception {
-            if (data.startsWith("[")) {
-                new JSONArray(data);
-            } else if (data.startsWith("{")) {
-                new JSONObject(data);
-            } else {
-                throw new IllegalArgumentException();
-            }
         }
     }
 
     private static class GeneralXmlPullParser implements Parser {
         @Override public void parse(String data) throws Exception {
-            XmlPullParser xmlParser = android.util.Xml.newPullParser();
-            xmlParser.setInput(new StringReader(data));
-            xmlParser.nextTag();
-            while (xmlParser.next() != XmlPullParser.END_DOCUMENT) {
-                xmlParser.getName();
-                xmlParser.getText();
-            }
         }
     }
 
