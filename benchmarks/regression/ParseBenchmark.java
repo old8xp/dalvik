@@ -28,6 +28,7 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParserFactory;
+import org.codehaus.jackson.JsonFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.xml.sax.InputSource;
@@ -53,9 +54,19 @@ public final class ParseBenchmark extends SimpleBenchmark {
     }
 
     private enum Api {
+        ANDROID_STREAM("json") {
+            @Override Parser newParser() {
+                return new AndroidStreamParser();
+            }
+        },
+        JACKSON_STREAM("json") {
+            @Override Parser newParser() {
+                return new JacksonStreamParser();
+            }
+        },
         GSON_STREAM("json") {
             @Override Parser newParser() {
-                return new GeneralGsonStreamingParser();
+                return new GsonStreamParser();
             }
         },
         GSON_DOM("json") {
@@ -132,11 +143,63 @@ public final class ParseBenchmark extends SimpleBenchmark {
         void parse(String data) throws Exception;
     }
 
-    private static class GeneralGsonStreamingParser implements Parser {
+    private static class AndroidStreamParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            android.util.JsonReader jsonReader
+                    = new android.util.JsonReader(new StringReader(data));
+            readToken(jsonReader);
+            jsonReader.close();
+        }
+
+        public void readObject(android.util.JsonReader reader) throws IOException {
+            reader.beginObject();
+            while (reader.hasNext()) {
+                reader.nextName();
+                readToken(reader);
+            }
+            reader.endObject();
+        }
+
+        public void readArray(android.util.JsonReader reader) throws IOException {
+            reader.beginArray();
+            while (reader.hasNext()) {
+                readToken(reader);
+            }
+            reader.endArray();
+        }
+
+        private void readToken(android.util.JsonReader reader) throws IOException {
+            switch (reader.peek()) {
+            case BEGIN_ARRAY:
+                readArray(reader);
+                break;
+            case BEGIN_OBJECT:
+                readObject(reader);
+                break;
+            case BOOLEAN:
+                reader.nextBoolean();
+                break;
+            case NULL:
+                reader.nextNull();
+                break;
+            case NUMBER:
+                reader.nextLong();
+                break;
+            case STRING:
+                reader.nextString();
+                break;
+            default:
+                throw new IllegalArgumentException("Unexpected token" + reader.peek());
+            }
+        }
+    }
+
+    private static class GsonStreamParser implements Parser {
         @Override public void parse(String data) throws Exception {
             com.google.gson.stream.JsonReader jsonReader
                     = new com.google.gson.stream.JsonReader(new StringReader(data));
             readToken(jsonReader);
+            jsonReader.close();
         }
 
         public void readObject(com.google.gson.stream.JsonReader reader) throws IOException {
@@ -182,6 +245,37 @@ public final class ParseBenchmark extends SimpleBenchmark {
         }
     }
 
+    private static class JacksonStreamParser implements Parser {
+        @Override public void parse(String data) throws Exception {
+            JsonFactory jsonFactory = new JsonFactory();
+            org.codehaus.jackson.JsonParser jp = jsonFactory.createJsonParser(new StringReader(data));
+            int depth = 0;
+            do {
+                switch (jp.nextToken()) {
+                case START_OBJECT:
+                case START_ARRAY:
+                    depth++;
+                    break;
+                case END_OBJECT:
+                case END_ARRAY:
+                    depth--;
+                    break;
+                case FIELD_NAME:
+                    jp.getCurrentName();
+                    break;
+                case VALUE_STRING:
+                    jp.getText();
+                    break;
+                case VALUE_NUMBER_INT:
+                case VALUE_NUMBER_FLOAT:
+                    jp.getLongValue();
+                    break;
+                }
+            } while (depth > 0);
+            jp.close();
+        }
+    }
+
     private static class GsonDomParser implements Parser {
         @Override public void parse(String data) throws Exception {
             new JsonParser().parse(data);
@@ -190,25 +284,25 @@ public final class ParseBenchmark extends SimpleBenchmark {
 
     private static class OrgJsonParser implements Parser {
         @Override public void parse(String data) throws Exception {
-          if (data.startsWith("[")) {
-              new JSONArray(data);
-          } else if (data.startsWith("{")) {
-              new JSONObject(data);
-          } else {
-              throw new IllegalArgumentException();
-          }
+            if (data.startsWith("[")) {
+                new JSONArray(data);
+            } else if (data.startsWith("{")) {
+                new JSONObject(data);
+            } else {
+                throw new IllegalArgumentException();
+            }
         }
     }
 
     private static class GeneralXmlPullParser implements Parser {
         @Override public void parse(String data) throws Exception {
-          XmlPullParser xmlParser = android.util.Xml.newPullParser();
-          xmlParser.setInput(new StringReader(data));
-          xmlParser.nextTag();
-          while (xmlParser.next() != XmlPullParser.END_DOCUMENT) {
-              xmlParser.getName();
-              xmlParser.getText();
-          }
+            XmlPullParser xmlParser = android.util.Xml.newPullParser();
+            xmlParser.setInput(new StringReader(data));
+            xmlParser.nextTag();
+            while (xmlParser.next() != XmlPullParser.END_DOCUMENT) {
+                xmlParser.getName();
+                xmlParser.getText();
+            }
         }
     }
 
