@@ -17,7 +17,6 @@
 package benchmarks.regression;
 
 import com.google.caliper.Param;
-import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import java.util.BitSet;
 
@@ -25,15 +24,19 @@ public class BitSetBenchmark extends SimpleBenchmark {
     @Param({ "1000", "10000" })
     private int size;
 
+    private BitSet bs;
+
+    @Override protected void setUp() throws Exception {
+        bs = new BitSet(size);
+    }
+
     public void timeIsEmptyTrue(int reps) {
-        BitSet bs = new BitSet(size);
         for (int i = 0; i < reps; ++i) {
             if (!bs.isEmpty()) throw new RuntimeException();
         }
     }
 
     public void timeIsEmptyFalse(int reps) {
-        BitSet bs = new BitSet(size);
         bs.set(bs.size() - 1);
         for (int i = 0; i < reps; ++i) {
             if (bs.isEmpty()) throw new RuntimeException();
@@ -41,35 +44,30 @@ public class BitSetBenchmark extends SimpleBenchmark {
     }
 
     public void timeGet(int reps) {
-        BitSet bs = new BitSet(size);
         for (int i = 0; i < reps; ++i) {
             bs.get(i % size);
         }
     }
 
     public void timeClear(int reps) {
-        BitSet bs = new BitSet(size);
         for (int i = 0; i < reps; ++i) {
             bs.clear(i % size);
         }
     }
 
     public void timeSet(int reps) {
-        BitSet bs = new BitSet(size);
         for (int i = 0; i < reps; ++i) {
             bs.set(i % size);
         }
     }
 
     public void timeSetOn(int reps) {
-        BitSet bs = new BitSet(size);
         for (int i = 0; i < reps; ++i) {
             bs.set(i % size, true);
         }
     }
 
     public void timeSetOff(int reps) {
-        BitSet bs = new BitSet(size);
         for (int i = 0; i < reps; ++i) {
             bs.set(i % size, false);
         }
