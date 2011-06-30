@@ -20,13 +20,33 @@ import com.google.caliper.SimpleBenchmark;
 import org.apache.harmony.dalvik.NativeTestTarget;
 
 public class NativeMethodBenchmark extends SimpleBenchmark {
-    public void timeEmptyJniStaticMethod0(int reps) throws Exception {
+    public void time_emptyJniStaticSynchronizedMethod0(int reps) throws Exception {
+        for (int i = 0; i < reps; ++i) {
+            NativeTestTarget.emptyJniStaticSynchronizedMethod0();
+        }
+    }
+
+    public void time_emptyJniSynchronizedMethod0(int reps) throws Exception {
+        NativeTestTarget n = new NativeTestTarget();
+        for (int i = 0; i < reps; ++i) {
+            n.emptyJniSynchronizedMethod0();
+        }
+    }
+
+    public void time_emptyJniStaticMethod0(int reps) throws Exception {
         for (int i = 0; i < reps; ++i) {
             NativeTestTarget.emptyJniStaticMethod0();
         }
     }
 
-    public void timeEmptyJniStaticMethod6(int reps) throws Exception {
+    public void time_emptyJniMethod0(int reps) throws Exception {
+        NativeTestTarget n = new NativeTestTarget();
+        for (int i = 0; i < reps; ++i) {
+            n.emptyJniMethod0();
+        }
+    }
+
+    public void time_emptyJniStaticMethod6(int reps) throws Exception {
         int a = -1;
         int b = 0;
         for (int i = 0; i < reps; ++i) {
@@ -34,21 +54,26 @@ public class NativeMethodBenchmark extends SimpleBenchmark {
         }
     }
 
-    public void timeEmptyJniStaticMethod6L(int reps) throws Exception {
+    public void time_emptyJniMethod6(int reps) throws Exception {
+        int a = -1;
+        int b = 0;
+        NativeTestTarget n = new NativeTestTarget();
+        for (int i = 0; i < reps; ++i) {
+            n.emptyJniMethod6(a, b, 1, 2, 3, i);
+        }
+    }
+
+    public void time_emptyJniStaticMethod6L(int reps) throws Exception {
         for (int i = 0; i < reps; ++i) {
             NativeTestTarget.emptyJniStaticMethod6L(null, null, null, null, null, null);
         }
     }
 
-    public void timeEmptyInlineMethod(int reps) throws Exception {
+    public void time_emptyJniMethod6L(int reps) throws Exception {
+        NativeTestTarget n = new NativeTestTarget();
         for (int i = 0; i < reps; ++i) {
-            NativeTestTarget.emptyInlineMethod();
+            n.emptyJniMethod6L(null, null, null, null, null, null);
         }
     }
 
-    public void timeEmptyInternalStaticMethod(int reps) throws Exception {
-        for (int i = 0; i < reps; ++i) {
-            NativeTestTarget.emptyInternalStaticMethod();
-        }
-    }
 }
