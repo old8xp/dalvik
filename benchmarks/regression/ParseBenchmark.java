@@ -19,7 +19,6 @@ package benchmarks.regression;
 import com.google.caliper.Param;
 import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
-import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -28,7 +27,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.SAXParserFactory;
-import org.codehaus.jackson.JsonFactory;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.xml.sax.InputSource;
@@ -57,21 +55,6 @@ public final class ParseBenchmark extends SimpleBenchmark {
         ANDROID_STREAM("json") {
             @Override Parser newParser() {
                 return new AndroidStreamParser();
-            }
-        },
-        JACKSON_STREAM("json") {
-            @Override Parser newParser() {
-                return new JacksonStreamParser();
-            }
-        },
-        GSON_STREAM("json") {
-            @Override Parser newParser() {
-                return new GsonStreamParser();
-            }
-        },
-        GSON_DOM("json") {
-            @Override Parser newParser() {
-                return new GsonDomParser();
             }
         },
         ORG_JSON("json") {
@@ -191,94 +174,6 @@ public final class ParseBenchmark extends SimpleBenchmark {
             default:
                 throw new IllegalArgumentException("Unexpected token" + reader.peek());
             }
-        }
-    }
-
-    private static class GsonStreamParser implements Parser {
-        @Override public void parse(String data) throws Exception {
-            com.google.gson.stream.JsonReader jsonReader
-                    = new com.google.gson.stream.JsonReader(new StringReader(data));
-            readToken(jsonReader);
-            jsonReader.close();
-        }
-
-        public void readObject(com.google.gson.stream.JsonReader reader) throws IOException {
-            reader.beginObject();
-            while (reader.hasNext()) {
-                reader.nextName();
-                readToken(reader);
-            }
-            reader.endObject();
-        }
-
-        public void readArray(com.google.gson.stream.JsonReader reader) throws IOException {
-            reader.beginArray();
-            while (reader.hasNext()) {
-                readToken(reader);
-            }
-            reader.endArray();
-        }
-
-        private void readToken(com.google.gson.stream.JsonReader reader) throws IOException {
-            switch (reader.peek()) {
-            case BEGIN_ARRAY:
-                readArray(reader);
-                break;
-            case BEGIN_OBJECT:
-                readObject(reader);
-                break;
-            case BOOLEAN:
-                reader.nextBoolean();
-                break;
-            case NULL:
-                reader.nextNull();
-                break;
-            case NUMBER:
-                reader.nextLong();
-                break;
-            case STRING:
-                reader.nextString();
-                break;
-            default:
-                throw new IllegalArgumentException("Unexpected token" + reader.peek());
-            }
-        }
-    }
-
-    private static class JacksonStreamParser implements Parser {
-        @Override public void parse(String data) throws Exception {
-            JsonFactory jsonFactory = new JsonFactory();
-            org.codehaus.jackson.JsonParser jp = jsonFactory.createJsonParser(new StringReader(data));
-            int depth = 0;
-            do {
-                switch (jp.nextToken()) {
-                case START_OBJECT:
-                case START_ARRAY:
-                    depth++;
-                    break;
-                case END_OBJECT:
-                case END_ARRAY:
-                    depth--;
-                    break;
-                case FIELD_NAME:
-                    jp.getCurrentName();
-                    break;
-                case VALUE_STRING:
-                    jp.getText();
-                    break;
-                case VALUE_NUMBER_INT:
-                case VALUE_NUMBER_FLOAT:
-                    jp.getLongValue();
-                    break;
-                }
-            } while (depth > 0);
-            jp.close();
-        }
-    }
-
-    private static class GsonDomParser implements Parser {
-        @Override public void parse(String data) throws Exception {
-            new JsonParser().parse(data);
         }
     }
 
