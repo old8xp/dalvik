@@ -18,7 +18,7 @@ package benchmarks.regression;
 
 import com.google.caliper.Param;
 import com.google.caliper.SimpleBenchmark;
-import org.bouncycastle.crypto.Digest;
+import com.android.org.bouncycastle.crypto.Digest;
 
 public class DigestBenchmark extends SimpleBenchmark {
 
@@ -41,7 +41,7 @@ public class DigestBenchmark extends SimpleBenchmark {
     private Class<? extends Digest> digestClass;
 
     @Override protected void setUp() throws Exception {
-        String className = "org.bouncycastle.crypto.digests.";
+        String className = "com.android.org.bouncycastle.crypto.digests.";
         switch (implementation) {
             case OPENSSL:
                 className += ("OpenSSLDigest$" + algorithm);
