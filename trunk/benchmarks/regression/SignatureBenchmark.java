@@ -20,6 +20,7 @@ import com.google.caliper.Param;
 import com.google.caliper.SimpleBenchmark;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.util.HashMap;
@@ -27,10 +28,7 @@ import java.util.Map;
 import org.apache.harmony.xnet.provider.jsse.OpenSSLSignature;
 
 /**
- * The OpenSSL implementation can currently only verify signatures,
- * not compute them, so we use the BouncyCastle implementation during
- * setup to do that part of the test. Typically that computation is
- * done by something like the jarsigner on the host.
+ * Tests RSA and DSA signature creation and verification.
  */
 public class SignatureBenchmark extends SimpleBenchmark {
 
@@ -56,12 +54,14 @@ public class SignatureBenchmark extends SimpleBenchmark {
 
     public enum Implementation { OpenSSL, BouncyCastle };
 
-    // Key generation and signing aren't part of the benchmark so cache the results
+    // Key generation and signing aren't part of the benchmark for verification
+    // so cache the results
     private static Map<String,KeyPair> KEY_PAIRS = new HashMap<String,KeyPair>();
     private static Map<String,byte[]> SIGNATURES = new HashMap<String,byte[]>();
 
     private String signatureAlgorithm;
     private byte[] signature;
+    private PrivateKey privateKey;
     private PublicKey publicKey;
 
     @Override protected void setUp() throws Exception {
@@ -75,6 +75,7 @@ public class SignatureBenchmark extends SimpleBenchmark {
             keyPair = generator.generateKeyPair();
             KEY_PAIRS.put(keyAlgorithm, keyPair);
         }
+        this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
 
         this.signature = SIGNATURES.get(signatureAlgorithm);
@@ -87,15 +88,34 @@ public class SignatureBenchmark extends SimpleBenchmark {
         }
     }
 
-    public void time(int reps) throws Exception {
+    public void timeSign(int reps) throws Exception {
+        for (int i = 0; i < reps; ++i) {
+            Signature signer;
+            switch (implementation) {
+                case OpenSSL:
+                    signer = Signature.getInstance(signatureAlgorithm, "AndroidOpenSSL");
+                    break;
+                case BouncyCastle:
+                    signer = Signature.getInstance(signatureAlgorithm, "BC");
+                    break;
+                default:
+                    throw new RuntimeException(implementation.toString());
+            }
+            signer.initSign(privateKey);
+            signer.update(DATA);
+            signer.sign();
+        }
+    }
+
+    public void timeVerify(int reps) throws Exception {
         for (int i = 0; i < reps; ++i) {
             Signature verifier;
             switch (implementation) {
                 case OpenSSL:
-                    verifier = OpenSSLSignature.getInstance(signatureAlgorithm);
+                    verifier = Signature.getInstance(signatureAlgorithm, "AndroidOpenSSL");
                     break;
                 case BouncyCastle:
-                    verifier = Signature.getInstance(signatureAlgorithm);
+                    verifier = Signature.getInstance(signatureAlgorithm, "BC");
                     break;
                 default:
                     throw new RuntimeException(implementation.toString());
