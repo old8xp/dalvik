@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 public class ByteBufferBenchmark extends SimpleBenchmark {
-    enum MyByteOrder {
+    public enum MyByteOrder {
         BIG(ByteOrder.BIG_ENDIAN), LITTLE(ByteOrder.LITTLE_ENDIAN);
         final ByteOrder byteOrder;
         MyByteOrder(ByteOrder byteOrder) {
@@ -39,32 +39,12 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
 
     @Param({"true", "false"}) private boolean aligned;
 
-    /*
-    public void timeManualByteArrayCopy(int reps) {
-        byte[] src = new byte[8192];
-        for (int rep = 0; rep < reps; ++rep) {
-            byte[] dst = new byte[8192];
-            for (int i = 0; i < 4096; ++i) {
-                dst[i] = src[i];
-            }
-        }
-    }
-
-    public void time_System_arrayCopy(int reps) {
-        byte[] src = new byte[8192];
-        for (int rep = 0; rep < reps; ++rep) {
-            byte[] dst = new byte[8192];
-            System.arraycopy(src, 0, dst, 0, 8192);
-        }
-    }
-    */
-
     enum MyBufferType {
         DIRECT, HEAP, MAPPED;
     }
     @Param private MyBufferType bufferType;
 
-    private ByteBuffer newBuffer() throws IOException {
+    public static ByteBuffer newBuffer(MyByteOrder byteOrder, boolean aligned, MyBufferType bufferType) throws IOException {
         int size = aligned ? 8192 : 8192 + 8 + 1;
         ByteBuffer result = null;
         switch (bufferType) {
@@ -75,7 +55,11 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
             result = ByteBuffer.allocate(size);
             break;
         case MAPPED:
-            File tmpFile = new File("/sdcard/bm.tmp"); //File.createTempFile("MappedByteBufferTest", ".tmp");
+            File tmpFile = new File("/sdcard/bm.tmp");
+            if (new File("/tmp").isDirectory()) {
+                // We're running on the desktop.
+                tmpFile = File.createTempFile("MappedByteBufferTest", ".tmp");
+            }
             tmpFile.createNewFile();
             tmpFile.deleteOnExit();
             RandomAccessFile raf = new RandomAccessFile(tmpFile, "rw");
@@ -85,47 +69,16 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
             break;
         }
         result.order(byteOrder.byteOrder);
+        result.position(aligned ? 0 : 1);
         return result;
     }
-
-    /*
-    public void timeManualByteBufferCopy(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
-        ByteBuffer dst = newBuffer();
-        for (int rep = 0; rep < reps; ++rep) {
-            src.position(aligned ? 0 : 1);
-            dst.position(aligned ? 0 : 1);
-            for (int i = 0; i < 8192; ++i) {
-                dst.put(src.get());
-            }
-        }
-    }
-
-    public void timeByteBufferBulkGet(int reps) throws Exception {
-        ByteBuffer src = ByteBuffer.allocate(aligned ? 8192 : 8192 + 1);
-        byte[] dst = new byte[8192];
-        for (int rep = 0; rep < reps; ++rep) {
-            src.position(aligned ? 0 : 1);
-            src.get(dst, 0, dst.length);
-        }
-    }
-
-    public void timeDirectByteBufferBulkGet(int reps) throws Exception {
-        ByteBuffer src = ByteBuffer.allocateDirect(aligned ? 8192 : 8192 + 1);
-        byte[] dst = new byte[8192];
-        for (int rep = 0; rep < reps; ++rep) {
-            src.position(aligned ? 0 : 1);
-            src.get(dst, 0, dst.length);
-        }
-    }
-    */
 
     //
     // peeking
     //
 
     public void timeByteBuffer_getByte(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -135,7 +88,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeByteBuffer_getByteArray(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         byte[] dst = new byte[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
@@ -146,7 +99,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeByteBuffer_getByte_indexed(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -156,7 +109,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeByteBuffer_getChar(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -166,18 +119,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeCharBuffer_getCharArray(int reps) throws Exception {
-        CharBuffer src = newBuffer().asCharBuffer();
+        CharBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asCharBuffer();
         char[] dst = new char[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                src.position(aligned ? 0 : 1);
+                src.position(0);
                 src.get(dst);
             }
         }
     }
 
     public void timeByteBuffer_getChar_indexed(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -187,7 +140,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeByteBuffer_getDouble(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -197,18 +150,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeDoubleBuffer_getDoubleArray(int reps) throws Exception {
-        DoubleBuffer src = newBuffer().asDoubleBuffer();
+        DoubleBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asDoubleBuffer();
         double[] dst = new double[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                src.position(aligned ? 0 : 1);
+                src.position(0);
                 src.get(dst);
             }
         }
     }
 
     public void timeByteBuffer_getFloat(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -218,18 +171,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeFloatBuffer_getFloatArray(int reps) throws Exception {
-        FloatBuffer src = newBuffer().asFloatBuffer();
+        FloatBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asFloatBuffer();
         float[] dst = new float[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                src.position(aligned ? 0 : 1);
+                src.position(0);
                 src.get(dst);
             }
         }
     }
 
     public void timeByteBuffer_getInt(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -239,18 +192,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeIntBuffer_getIntArray(int reps) throws Exception {
-        IntBuffer src = newBuffer().asIntBuffer();
+        IntBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asIntBuffer();
         int[] dst = new int[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                src.position(aligned ? 0 : 1);
+                src.position(0);
                 src.get(dst);
             }
         }
     }
 
     public void timeByteBuffer_getLong(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -260,20 +213,20 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeLongBuffer_getLongArray(int reps) throws Exception {
-        LongBuffer src = newBuffer().asLongBuffer();
+        LongBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asLongBuffer();
         long[] dst = new long[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                src.position(aligned ? 0 : 1);
+                src.position(0);
                 src.get(dst);
             }
         }
     }
 
     public void timeByteBuffer_getShort(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
-            src.position(0);
+            src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
                 src.getShort();
             }
@@ -281,11 +234,11 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeShortBuffer_getShortArray(int reps) throws Exception {
-        ShortBuffer src = newBuffer().asShortBuffer();
+        ShortBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asShortBuffer();
         short[] dst = new short[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                src.position(aligned ? 0 : 1);
+                src.position(0);
                 src.get(dst);
             }
         }
@@ -296,7 +249,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     //
 
     public void timeByteBuffer_putByte(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(0);
             for (int i = 0; i < 1024; ++i) {
@@ -306,7 +259,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeByteBuffer_putByteArray(int reps) throws Exception {
-        ByteBuffer dst = newBuffer();
+        ByteBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         byte[] src = new byte[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
@@ -317,7 +270,7 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeByteBuffer_putChar(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -327,18 +280,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeCharBuffer_putCharArray(int reps) throws Exception {
-        CharBuffer dst = newBuffer().asCharBuffer();
+        CharBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asCharBuffer();
         char[] src = new char[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(aligned ? 0 : 1);
+                dst.position(0);
                 dst.put(src);
             }
         }
     }
 
     public void timeByteBuffer_putDouble(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -348,18 +301,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeDoubleBuffer_putDoubleArray(int reps) throws Exception {
-        DoubleBuffer dst = newBuffer().asDoubleBuffer();
+        DoubleBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asDoubleBuffer();
         double[] src = new double[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(aligned ? 0 : 1);
+                dst.position(0);
                 dst.put(src);
             }
         }
     }
 
     public void timeByteBuffer_putFloat(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -369,18 +322,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeFloatBuffer_putFloatArray(int reps) throws Exception {
-        FloatBuffer dst = newBuffer().asFloatBuffer();
+        FloatBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asFloatBuffer();
         float[] src = new float[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(aligned ? 0 : 1);
+                dst.position(0);
                 dst.put(src);
             }
         }
     }
 
     public void timeByteBuffer_putInt(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -390,18 +343,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeIntBuffer_putIntArray(int reps) throws Exception {
-        IntBuffer dst = newBuffer().asIntBuffer();
+        IntBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asIntBuffer();
         int[] src = new int[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(aligned ? 0 : 1);
+                dst.position(0);
                 dst.put(src);
             }
         }
     }
 
     public void timeByteBuffer_putLong(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -411,18 +364,18 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeLongBuffer_putLongArray(int reps) throws Exception {
-        LongBuffer dst = newBuffer().asLongBuffer();
+        LongBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asLongBuffer();
         long[] src = new long[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(aligned ? 0 : 1);
+                dst.position(0);
                 dst.put(src);
             }
         }
     }
 
     public void timeByteBuffer_putShort(int reps) throws Exception {
-        ByteBuffer src = newBuffer();
+        ByteBuffer src = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType);
         for (int rep = 0; rep < reps; ++rep) {
             src.position(aligned ? 0 : 1);
             for (int i = 0; i < 1024; ++i) {
@@ -432,31 +385,17 @@ public class ByteBufferBenchmark extends SimpleBenchmark {
     }
 
     public void timeShortBuffer_putShortArray(int reps) throws Exception {
-        ShortBuffer dst = newBuffer().asShortBuffer();
+        ShortBuffer dst = ByteBufferBenchmark.newBuffer(byteOrder, aligned, bufferType).asShortBuffer();
         short[] src = new short[1024];
         for (int rep = 0; rep < reps; ++rep) {
             for (int i = 0; i < 1024; ++i) {
-                dst.position(aligned ? 0 : 1);
+                dst.position(0);
                 dst.put(src);
             }
         }
     }
 
 /*
-    public void time_Arrays_copyOf(int reps) throws Exception {
-        byte[] src = new byte[8192];
-        for (int rep = 0; rep < reps; ++rep) {
-            byte[] dst = Arrays.copyOf(src, 8192);
-        }
-    }
-
-    public void time_Arrays_copyOfRange(int reps) throws Exception {
-        byte[] src = new byte[8192];
-        for (int rep = 0; rep < reps; ++rep) {
-            byte[] dst = Arrays.copyOfRange(src, 0, 8192);
-        }
-    }
-
     public void time_new_byteArray(int reps) throws Exception {
         for (int rep = 0; rep < reps; ++rep) {
             byte[] bs = new byte[8192];
