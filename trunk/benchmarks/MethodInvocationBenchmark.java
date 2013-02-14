@@ -99,11 +99,13 @@ public class MethodInvocationBenchmark extends SimpleBenchmark {
         }
     }
 
-    private static class Inner {
-        private void privateMethod() { }
-        protected void protectedMethod() { }
-        public void publicMethod() { }
-        void packageMethod() { }
+    public static class Inner {
+        private int i;
+        private void privateMethod() { ++i; }
+        protected void protectedMethod() { ++i; }
+        public void publicMethod() { ++i; }
+        void packageMethod() { ++i; }
+        final void finalPackageMethod() { ++i; }
     }
 
     public void timePrivateInnerPublicMethod(int reps) {
@@ -131,6 +133,13 @@ public class MethodInvocationBenchmark extends SimpleBenchmark {
         Inner inner = new Inner();
         for (int i = 0; i < reps; ++i) {
             inner.packageMethod();
+        }
+    }
+
+    public void timePrivateInnerFinalPackageMethod(int reps) {
+        Inner inner = new Inner();
+        for (int i = 0; i < reps; ++i) {
+          inner.finalPackageMethod();
         }
     }
 }
