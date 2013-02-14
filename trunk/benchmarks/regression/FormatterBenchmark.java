@@ -31,7 +31,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             f.format("this is a reasonably short string that doesn't actually need any formatting");
         }
     }
-    
+
     public void timeStringBuilder_NoFormatting(int reps) {
         for (int i = 0; i < reps; i++) {
             StringBuilder sb = new StringBuilder();
@@ -46,7 +46,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             f.format("this is a reasonably short string that has an int %d in it", value);
         }
     }
-    
+
     public void timeFormatter_OneIntArabic(int reps) {
         Locale arabic = new Locale("ar");
         Integer value = Integer.valueOf(1024); // We're not trying to benchmark boxing here.
@@ -55,7 +55,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             f.format(arabic, "this is a reasonably short string that has an int %d in it", value);
         }
     }
-    
+
     public void timeStringBuilder_OneInt(int reps) {
         for (int i = 0; i < reps; i++) {
             StringBuilder sb = new StringBuilder();
@@ -64,7 +64,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             sb.append(" in it");
         }
     }
-    
+
     public void timeFormatter_OneHexInt(int reps) {
         Integer value = Integer.valueOf(1024); // We're not trying to benchmark boxing here.
         for (int i = 0; i < reps; i++) {
@@ -72,7 +72,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             f.format("this is a reasonably short string that has an int %x in it", value);
         }
     }
-    
+
     public void timeStringBuilder_OneHexInt(int reps) {
         for (int i = 0; i < reps; i++) {
             StringBuilder sb = new StringBuilder();
@@ -81,7 +81,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             sb.append(" in it");
         }
     }
-    
+
     public void timeFormatter_OneFloat(int reps) {
         Float value = Float.valueOf(10.24f); // We're not trying to benchmark boxing here.
         for (int i = 0; i < reps; i++) {
@@ -89,7 +89,15 @@ public class FormatterBenchmark extends SimpleBenchmark {
             f.format("this is a reasonably short string that has a float %f in it", value);
         }
     }
-    
+
+    public void timeFormatter_OneFloat_dot2f(int reps) {
+        Float value = Float.valueOf(10.24f); // We're not trying to benchmark boxing here.
+        for (int i = 0; i < reps; i++) {
+            Formatter f = new Formatter();
+            f.format("this is a reasonably short string that has a float %.2f in it", value);
+        }
+    }
+
     public void timeFormatter_TwoFloats(int reps) {
         Float value = Float.valueOf(10.24f); // We're not trying to benchmark boxing here.
         for (int i = 0; i < reps; i++) {
@@ -97,7 +105,7 @@ public class FormatterBenchmark extends SimpleBenchmark {
             f.format("this is a reasonably short string that has two floats %f and %f in it", value, value);
         }
     }
-    
+
     public void timeStringBuilder_OneFloat(int reps) {
         for (int i = 0; i < reps; i++) {
             StringBuilder sb = new StringBuilder();
@@ -106,14 +114,14 @@ public class FormatterBenchmark extends SimpleBenchmark {
             sb.append(" in it");
         }
     }
-    
+
     public void timeFormatter_OneString(int reps) {
         for (int i = 0; i < reps; i++) {
             Formatter f = new Formatter();
             f.format("this is a reasonably short string that has a string %s in it", "hello");
         }
     }
-    
+
     public void timeStringBuilder_OneString(int reps) {
         for (int i = 0; i < reps; i++) {
             StringBuilder sb = new StringBuilder();
